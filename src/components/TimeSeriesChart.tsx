@@ -1,4 +1,5 @@
 
+
 import { useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -252,8 +253,7 @@ export const TimeSeriesChart = ({
                 pinch: {
                   enabled: true
                 },
-                mode: 'x',
-                sensitivity: 3
+                mode: 'x'
               },
               limits: {
                 x: {
@@ -323,3 +323,4 @@ export const TimeSeriesChart = ({
     </Card>
   );
 };
+
