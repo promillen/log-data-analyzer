@@ -1,6 +1,5 @@
 
-
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, ZoomIn, Move } from 'lucide-react';
@@ -32,6 +31,18 @@ interface TimeSeriesChartProps {
   selectedVariables: string[];
 }
 
+interface TooltipData {
+  x: number;
+  y: number;
+  visible: boolean;
+  time: string;
+  values: Array<{
+    label: string;
+    value: number;
+    color: string;
+  }>;
+}
+
 export const TimeSeriesChart = ({
   datasets,
   variableConfigs,
@@ -39,6 +50,13 @@ export const TimeSeriesChart = ({
 }: TimeSeriesChartProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<any>(null);
+  const [tooltip, setTooltip] = useState<TooltipData>({
+    x: 0,
+    y: 0,
+    visible: false,
+    time: '',
+    values: []
+  });
 
   useEffect(() => {
     const loadChartJS = async () => {
@@ -86,8 +104,8 @@ export const TimeSeriesChart = ({
           .filter(d => d.y !== null) || [];
 
         // Decimate data if there are too many points for better performance
-        if (data.length > 5000) {
-          const step = Math.ceil(data.length / 2000);
+        if (data.length > 3000) {
+          const step = Math.ceil(data.length / 1500);
           data = data.filter((_, index) => index % step === 0);
         }
 
@@ -100,7 +118,7 @@ export const TimeSeriesChart = ({
           fill: false,
           tension: 0,
           pointRadius: 0,
-          pointHoverRadius: 3,
+          pointHoverRadius: 0,
           spanGaps: true,
           yAxisID: variableId
         };
@@ -143,20 +161,18 @@ export const TimeSeriesChart = ({
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: {
-            duration: 0 // Disable animations for better performance
-          },
+          animation: false,
           interaction: {
-            mode: 'nearest',
-            axis: 'x',
+            mode: 'index',
             intersect: false
           },
           elements: {
             line: {
-              tension: 0 // Straight lines for better performance
+              tension: 0
             },
             point: {
-              radius: 0 // Hide points by default for better performance
+              radius: 0,
+              hoverRadius: 0
             }
           },
           scales: {
@@ -211,62 +227,102 @@ export const TimeSeriesChart = ({
               }
             },
             tooltip: {
-              mode: 'index',
-              intersect: false,
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              titleColor: '#fff',
-              bodyColor: '#fff',
-              borderColor: '#374151',
-              borderWidth: 1,
-              cornerRadius: 8,
-              animation: {
-                duration: 0 // Disable tooltip animations
-              },
-              callbacks: {
-                title: function(context: any) {
-                  if (context.length > 0) {
-                    const date = new Date(context[0].parsed.x);
-                    return date.toLocaleString('en-GB', {
-                      day: '2-digit',
-                      month: '2-digit',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    });
-                  }
-                  return '';
-                }
-              }
+              enabled: false // Disable default tooltip
             },
             zoom: {
               pan: {
                 enabled: true,
                 mode: 'x',
-                threshold: 5,
+                threshold: 10,
                 modifierKey: null
               },
               zoom: {
                 wheel: {
                   enabled: true,
-                  speed: 0.1
+                  speed: 0.05,
+                  threshold: 2
                 },
                 pinch: {
                   enabled: true
                 },
-                mode: 'x'
+                mode: 'x',
+                onZoomStart: () => {
+                  setTooltip(prev => ({ ...prev, visible: false }));
+                }
               },
               limits: {
                 x: {
-                  minRange: 60 * 1000 // Minimum 1 minute range
+                  minRange: 30 * 1000 // Minimum 30 seconds range
                 }
               }
             }
           },
-          onHover: (event, elements) => {
-            // Optimize hover performance
-            if (canvasRef.current) {
-              canvasRef.current.style.cursor = elements.length > 0 ? 'crosshair' : 'default';
+          onHover: (event, elements, chart) => {
+            if (!event.native || !canvasRef.current) return;
+
+            const rect = canvasRef.current.getBoundingClientRect();
+            const x = event.native.clientX - rect.left;
+            const y = event.native.clientY - rect.top;
+
+            // Get the position in chart coordinates
+            const canvasPosition = Chart.helpers.getRelativePosition(event, chart);
+            const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
+
+            if (!dataX) {
+              setTooltip(prev => ({ ...prev, visible: false }));
+              return;
             }
+
+            // Find closest data points for all datasets
+            const values: Array<{ label: string; value: number; color: string }> = [];
+            
+            chartDatasets.forEach((dataset: any) => {
+              if (!dataset?.data) return;
+              
+              // Find closest point
+              let closest = dataset.data[0];
+              let minDiff = Math.abs(closest.x - dataX);
+              
+              dataset.data.forEach((point: any) => {
+                const diff = Math.abs(point.x - dataX);
+                if (diff < minDiff) {
+                  minDiff = diff;
+                  closest = point;
+                }
+              });
+
+              if (closest && minDiff < 60000) { // Within 1 minute
+                values.push({
+                  label: dataset.label,
+                  value: closest.y,
+                  color: dataset.borderColor
+                });
+              }
+            });
+
+            if (values.length > 0) {
+              const time = new Date(dataX).toLocaleString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              });
+
+              setTooltip({
+                x: x + 10,
+                y: y - 10,
+                visible: true,
+                time,
+                values
+              });
+            } else {
+              setTooltip(prev => ({ ...prev, visible: false }));
+            }
+
+            // Update cursor
+            canvasRef.current.style.cursor = values.length > 0 ? 'crosshair' : 'default';
           }
         }
       });
@@ -317,10 +373,43 @@ export const TimeSeriesChart = ({
       </CardHeader>
       <CardContent>
         <div className="relative h-96 w-full">
-          <canvas ref={canvasRef} className="w-full h-full" />
+          <canvas 
+            ref={canvasRef} 
+            className="w-full h-full" 
+            onMouseLeave={() => setTooltip(prev => ({ ...prev, visible: false }))}
+          />
+          
+          {/* Custom Tooltip */}
+          {tooltip.visible && (
+            <div
+              className="absolute z-50 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-700 pointer-events-none"
+              style={{
+                left: `${tooltip.x}px`,
+                top: `${tooltip.y}px`,
+                transform: tooltip.x > 200 ? 'translateX(-100%)' : 'translateX(0)'
+              }}
+            >
+              <div className="font-semibold mb-2 text-gray-200">
+                {tooltip.time}
+              </div>
+              <div className="space-y-1">
+                {tooltip.values.map((item, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-gray-300">{item.label}:</span>
+                    <span className="font-mono font-medium">
+                      {typeof item.value === 'number' ? item.value.toFixed(2) : item.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
   );
 };
-
