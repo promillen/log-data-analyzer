@@ -482,11 +482,11 @@ const Index = () => {
               <TrendingUp className="h-8 w-8 text-white" />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Time Series Visualizer
+              Log Data Analyzer
             </h1>
           </div>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Advanced multi-variable time series data visualization with customizable charts and comprehensive analytics
+            Professional log data analysis and visualization tool for time series datasets
           </p>
         </div>
 
