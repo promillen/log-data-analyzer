@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -189,11 +190,11 @@ export const TimeSeriesChart = ({
         }
 
         const chartDataset = {
-          label: cleanLabel, // Use cleaned label
+          label: cleanLabel,
           data,
           borderColor: config.color,
           backgroundColor: config.color + '10',
-          borderWidth: 2,
+          borderWidth: 1.5, // Slightly thinner lines
           fill: false,
           tension: 0.2,
           pointRadius: 0,
@@ -232,13 +233,29 @@ export const TimeSeriesChart = ({
         if (!config) return;
 
         // Determine label for the axis
-        let axisLabel = config.label;
-        if (variablesInGroup.length > 1) {
-          // If multiple variables share this axis, show all labels
+        let axisLabel;
+        if (config.yAxisGroup) {
+          // If there's a group name, use it as the axis label
+          axisLabel = config.yAxisGroup;
+        } else if (variablesInGroup.length > 1) {
+          // If multiple variables share this axis but no group name, show all labels
           axisLabel = variablesInGroup
-            .map(varId => variableConfigs[varId]?.label)
+            .map(varId => {
+              let label = variableConfigs[varId]?.label || '';
+              // Remove deviceData. prefix from axis labels too
+              if (label.startsWith('deviceData.')) {
+                label = label.substring('deviceData.'.length);
+              }
+              return label;
+            })
             .filter(Boolean)
             .join(' / ');
+        } else {
+          // Single variable, use its cleaned label
+          axisLabel = config.label;
+          if (axisLabel.startsWith('deviceData.')) {
+            axisLabel = axisLabel.substring('deviceData.'.length);
+          }
         }
 
         yScales[groupKey] = {
@@ -280,7 +297,7 @@ export const TimeSeriesChart = ({
           elements: {
             line: {
               tension: 0.2,
-              borderWidth: 2 // Slightly thinner lines globally
+              borderWidth: 1.5 // Slightly thinner lines globally
             },
             point: {
               radius: 0,
