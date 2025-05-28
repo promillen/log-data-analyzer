@@ -183,18 +183,18 @@ export const TimeSeriesChart = ({
         const yAxisId = config.yAxisGroup || variableId;
 
         const chartDataset = {
-          label: `${config.label} (${matchingDatasetKey})`,
+          label: config.label, // Remove filename from label
           data,
           borderColor: config.color,
           backgroundColor: config.color + '20',
           borderWidth: 2,
           fill: false,
-          tension: 0.1,
-          pointRadius: 3,
-          pointHoverRadius: 6,
+          tension: 0.4, // Increase tension for smoother curves
+          pointRadius: 1, // Reduce point size to emphasize lines
+          pointHoverRadius: 4,
           pointBackgroundColor: config.color,
           pointBorderColor: '#ffffff',
-          pointBorderWidth: 2,
+          pointBorderWidth: 1,
           spanGaps: true,
           yAxisID: yAxisId
         };
@@ -273,11 +273,11 @@ export const TimeSeriesChart = ({
           },
           elements: {
             line: {
-              tension: 0.1
+              tension: 0.4 // Smoother curves
             },
             point: {
-              radius: 3,
-              hoverRadius: 6
+              radius: 1, // Smaller points by default
+              hoverRadius: 4
             }
           },
           scales: {
