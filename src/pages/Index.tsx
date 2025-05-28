@@ -54,14 +54,14 @@ const Index = () => {
   };
 
   const cleanValue = (value: string): number | null => {
-    // Remove equals signs and quotes: ="70.8" -> 70.8
+    // Handle both quoted values like ="70.8" and plain numbers like 0 or 1722.54
     const cleaned = value.replace(/^=?"?/, '').replace(/"?$/, '').trim();
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? null : parsed;
   };
 
   const parseTimestamp = (timestampStr: string): Date | null => {
-    // Format: 21/05/2025 23.59.48 or similar variations
+    // Handle formats like: 21/05/2025 23.59 or 21/05/2025 23.59.48
     const cleanTimestamp = timestampStr.trim();
     
     // Split by space to separate date and time
@@ -78,15 +78,23 @@ const Index = () => {
     const month = parseInt(dateParts[1]) - 1; // JS months are 0-indexed
     const year = parseInt(dateParts[2]);
     
-    // Parse time (HH.MM.SS or HH:MM:SS)
+    // Parse time - handle both HH.MM and HH.MM.SS formats
     const timeParts = timeStr.split(/[\.:]/).map(part => parseInt(part));
     if (timeParts.length < 2) return null;
     
     const hour = timeParts[0] || 0;
     const minute = timeParts[1] || 0;
-    const second = timeParts[2] || 0;
+    const second = timeParts[2] || 0; // Default to 0 if no seconds provided
     
-    return new Date(year, month, day, hour, minute, second);
+    const date = new Date(year, month, day, hour, minute, second);
+    
+    // Validate the created date
+    if (isNaN(date.getTime())) {
+      console.warn(`Invalid date created from: ${timestampStr}`);
+      return null;
+    }
+    
+    return date;
   };
 
   const parseExcelFile = useCallback(async (file: File): Promise<Dataset> => {
@@ -129,7 +137,7 @@ const Index = () => {
       throw new Error('File must have at least a header row and one data row');
     }
 
-    // Detect delimiter
+    // Detect delimiter - try tab first, then comma, then semicolon
     const firstLine = lines[0];
     let delimiter = '\t';
     if (firstLine.split('\t').length < 2) {
@@ -139,6 +147,8 @@ const Index = () => {
       }
     }
 
+    console.log(`Detected delimiter: "${delimiter}" for file: ${fileName}`);
+
     // Parse header
     const headerParts = lines[0].split(delimiter).map(h => h.trim());
     if (headerParts.length < 2) {
@@ -147,6 +157,7 @@ const Index = () => {
 
     // First column should be timestamp, rest are variables
     const headers = headerParts.slice(1);
+    console.log(`Found headers: ${headers.join(', ')}`);
     
     const variables: Record<string, DataPoint[]> = {};
     headers.forEach(header => {
@@ -154,19 +165,25 @@ const Index = () => {
     });
 
     let validRows = 0;
+    let invalidRows = 0;
+    
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
 
       const parts = line.split(delimiter).map(part => part.trim());
-      if (parts.length < 2) continue;
+      if (parts.length < 2) {
+        console.warn(`Skipping line ${i + 1}: insufficient columns`);
+        continue;
+      }
 
       const [timestampStr, ...values] = parts;
       
       // Parse timestamp
       const datetime = parseTimestamp(timestampStr);
       if (!datetime || isNaN(datetime.getTime())) {
-        console.warn(`Invalid timestamp on line ${i + 1}: ${timestampStr}`);
+        console.warn(`Invalid timestamp on line ${i + 1}: "${timestampStr}"`);
+        invalidRows++;
         continue;
       }
 
@@ -188,6 +205,8 @@ const Index = () => {
         }
       });
     }
+
+    console.log(`Parsed ${validRows} valid rows, ${invalidRows} invalid rows from ${fileName}`);
 
     if (validRows === 0) {
       throw new Error('No valid data rows found');
