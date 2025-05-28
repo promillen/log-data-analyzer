@@ -477,11 +477,11 @@ const Index = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-3">
-            <div className="p-3 bg-blue-600 rounded-xl">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-3 rounded-lg">
               <TrendingUp className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight py-1">
               Log Data Analyzer
             </h1>
           </div>
