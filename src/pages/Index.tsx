@@ -54,9 +54,20 @@ const Index = () => {
   };
 
   const cleanValue = (value: string): number | null => {
+    console.log(`Raw value before cleaning: "${value}"`);
+    
     // Handle both quoted values like ="70.8" and plain numbers like 0 or 1722.54
     const cleaned = value.replace(/^=?"?/, '').replace(/"?$/, '').trim();
+    console.log(`After cleaning: "${cleaned}"`);
+    
+    if (cleaned === '' || cleaned === 'null' || cleaned === 'undefined') {
+      console.log('Value is empty/null/undefined, returning null');
+      return null;
+    }
+    
     const parsed = parseFloat(cleaned);
+    console.log(`Parsed float: ${parsed}, isNaN: ${isNaN(parsed)}`);
+    
     return isNaN(parsed) ? null : parsed;
   };
 
@@ -169,6 +180,7 @@ const Index = () => {
     }
 
     console.log(`Detected delimiter: "${delimiter}" for file: ${fileName}`);
+    console.log(`First few lines of file:`, lines.slice(0, 3));
 
     // Parse header
     const headerParts = lines[0].split(delimiter).map(h => h.trim());
@@ -188,17 +200,22 @@ const Index = () => {
     let validRows = 0;
     let invalidRows = 0;
     
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = 1; i < lines.length && i < 6; i++) { // Only process first 5 rows for debugging
       const line = lines[i].trim();
       if (!line) continue;
 
+      console.log(`\nProcessing line ${i}: "${line}"`);
       const parts = line.split(delimiter).map(part => part.trim());
+      console.log(`Split into ${parts.length} parts:`, parts);
+      
       if (parts.length < 2) {
         console.warn(`Skipping line ${i + 1}: insufficient columns`);
         continue;
       }
 
       const [timestampStr, ...values] = parts;
+      console.log(`Timestamp: "${timestampStr}"`);
+      console.log(`Values:`, values);
       
       // Parse timestamp
       const datetime = parseTimestamp(timestampStr);
@@ -211,6 +228,44 @@ const Index = () => {
       validRows++;
 
       // Parse values for each variable
+      headers.forEach((header, index) => {
+        if (index < values.length) {
+          console.log(`Processing value for header "${header}": "${values[index]}"`);
+          const value = cleanValue(values[index]);
+          console.log(`Cleaned value: ${value}`);
+          variables[header].push({
+            datetime: datetime,
+            value: value
+          });
+        } else {
+          variables[header].push({
+            datetime: datetime,
+            value: null
+          });
+        }
+      });
+    }
+
+    // Process the rest of the lines without detailed logging
+    for (let i = 6; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parts = line.split(delimiter).map(part => part.trim());
+      if (parts.length < 2) {
+        continue;
+      }
+
+      const [timestampStr, ...values] = parts;
+      
+      const datetime = parseTimestamp(timestampStr);
+      if (!datetime || isNaN(datetime.getTime())) {
+        invalidRows++;
+        continue;
+      }
+
+      validRows++;
+
       headers.forEach((header, index) => {
         if (index < values.length) {
           const value = cleanValue(values[index]);
@@ -228,6 +283,12 @@ const Index = () => {
     }
 
     console.log(`Parsed ${validRows} valid rows, ${invalidRows} invalid rows from ${fileName}`);
+
+    // Log sample data for first variable
+    const firstVariable = headers[0];
+    if (variables[firstVariable]) {
+      console.log(`Sample data for "${firstVariable}":`, variables[firstVariable].slice(0, 3));
+    }
 
     if (validRows === 0) {
       throw new Error('No valid data rows found');
