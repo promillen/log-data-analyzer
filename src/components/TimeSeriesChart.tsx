@@ -46,10 +46,13 @@ export const TimeSeriesChart = ({
       // Dynamically import Chart.js to avoid SSR issues
       const [
         { Chart, registerables },
-        { default: zoomPlugin }
+        { default: zoomPlugin },
+        // Import the date adapter
+        'chartjs-adapter-date-fns'
       ] = await Promise.all([
         import('chart.js'),
-        import('chartjs-plugin-zoom')
+        import('chartjs-plugin-zoom'),
+        import('chartjs-adapter-date-fns')
       ]);
 
       Chart.register(...registerables, zoomPlugin);
