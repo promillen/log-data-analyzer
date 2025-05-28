@@ -182,12 +182,18 @@ export const TimeSeriesChart = ({
 
         const yAxisId = config.yAxisGroup || variableId;
 
+        // Clean up the label by removing "deviceData." prefix
+        let cleanLabel = config.label;
+        if (cleanLabel.startsWith('deviceData.')) {
+          cleanLabel = cleanLabel.substring('deviceData.'.length);
+        }
+
         const chartDataset = {
-          label: config.label,
+          label: cleanLabel, // Use cleaned label
           data,
           borderColor: config.color,
           backgroundColor: config.color + '10',
-          borderWidth: 2, // Slightly thinner lines
+          borderWidth: 2,
           fill: false,
           tension: 0.2,
           pointRadius: 0,

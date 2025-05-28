@@ -35,11 +35,19 @@ export const StatisticsPanel = ({
   variableConfigs,
   selectedVariables
 }: StatisticsPanelProps) => {
+  console.log('=== STATISTICS PANEL DEBUG ===');
+  console.log('Selected variables:', selectedVariables);
+  console.log('Available datasets:', Object.keys(datasets));
+  console.log('Available configs:', Object.keys(variableConfigs));
+
   if (selectedVariables.length === 0) {
+    console.log('No variables selected, not showing statistics panel');
     return null;
   }
 
   const calculateStats = (variableId: string) => {
+    console.log(`\n--- Calculating stats for: "${variableId}" ---`);
+    
     // Split only on the first underscore to handle variable names with dots
     const underscoreIndex = variableId.indexOf('_');
     if (underscoreIndex === -1) {
@@ -50,14 +58,35 @@ export const StatisticsPanel = ({
     const fileName = variableId.substring(0, underscoreIndex);
     const variableName = variableId.substring(underscoreIndex + 1);
     
+    console.log(`  Dataset key: "${fileName}"`);
+    console.log(`  Variable name: "${variableName}"`);
+    
     const dataset = datasets[fileName];
     const config = variableConfigs[variableId];
     
-    if (!dataset || !config) return null;
+    console.log(`  Dataset found: ${!!dataset}`);
+    console.log(`  Config found: ${!!config}`);
+    
+    if (!dataset || !config) {
+      console.log(`  Missing dataset or config, returning null`);
+      return null;
+    }
 
-    const values = dataset.variables[variableName]
+    console.log(`  Available variables in dataset:`, Object.keys(dataset.variables));
+    const variableData = dataset.variables[variableName];
+    console.log(`  Variable data found: ${!!variableData}`);
+    
+    if (!variableData) {
+      console.log(`  No variable data found`);
+      return null;
+    }
+
+    const values = variableData
       ?.filter(d => d.value !== null)
       .map(d => d.value!) || [];
+
+    console.log(`  Valid values found: ${values.length}`);
+    console.log(`  Sample values:`, values.slice(0, 5));
 
     if (values.length === 0) return null;
 
@@ -76,7 +105,7 @@ export const StatisticsPanel = ({
       ? (sortedValues[sortedValues.length / 2 - 1] + sortedValues[sortedValues.length / 2]) / 2
       : sortedValues[Math.floor(sortedValues.length / 2)];
 
-    return {
+    const stats = {
       min,
       max,
       avg,
@@ -85,7 +114,12 @@ export const StatisticsPanel = ({
       count: values.length,
       range: max - min
     };
+    
+    console.log(`  Calculated stats:`, stats);
+    return stats;
   };
+
+  console.log('=== END STATISTICS PANEL DEBUG ===\n');
 
   return (
     <Card>
@@ -100,6 +134,8 @@ export const StatisticsPanel = ({
           {selectedVariables.map(variableId => {
             const config = variableConfigs[variableId];
             const stats = calculateStats(variableId);
+            
+            console.log(`Rendering stats card for ${variableId}:`, { config: !!config, stats: !!stats });
             
             if (!config || !stats) return null;
 
