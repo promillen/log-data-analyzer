@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -88,7 +87,10 @@ export const TimeSeriesChart = ({
         return;
       }
 
-      console.log('Creating chart with variables:', selectedVariables);
+      console.log('=== DEBUGGING CHART DATA ===');
+      console.log('Available datasets:', Object.keys(datasets));
+      console.log('Available variable configs:', Object.keys(variableConfigs));
+      console.log('Selected variables:', selectedVariables);
 
       // Group variables by Y-axis
       const yAxisGroups: Record<string, string[]> = {};
@@ -115,10 +117,21 @@ export const TimeSeriesChart = ({
         const fileName = variableId.substring(0, underscoreIndex);
         const variableName = variableId.substring(underscoreIndex + 1);
         
-        console.log(`Processing variable: ${variableId} -> fileName: ${fileName}, variableName: ${variableName}`);
+        console.log(`Processing variable: ${variableId}`);
+        console.log(`  -> fileName: "${fileName}"`);
+        console.log(`  -> variableName: "${variableName}"`);
         
         const dataset = datasets[fileName];
         const config = variableConfigs[variableId];
+        
+        console.log(`  -> dataset found: ${!!dataset}`);
+        console.log(`  -> config found: ${!!config}`);
+        
+        if (dataset) {
+          console.log(`  -> available variables in dataset:`, Object.keys(dataset.variables));
+          console.log(`  -> looking for variable: "${variableName}"`);
+          console.log(`  -> variable found: ${!!dataset.variables[variableName]}`);
+        }
         
         if (!dataset || !config) {
           console.warn('Missing dataset or config for:', variableId);
@@ -128,7 +141,6 @@ export const TimeSeriesChart = ({
         const variableData = dataset.variables[variableName];
         if (!variableData) {
           console.warn('No data found for variable:', variableName, 'in dataset:', fileName);
-          console.log('Available variables:', Object.keys(dataset.variables));
           return null;
         }
 
@@ -169,6 +181,9 @@ export const TimeSeriesChart = ({
       }).filter(Boolean);
 
       console.log('Chart datasets created:', chartDatasets.length);
+      console.log('=== END DEBUGGING ===');
+
+      if (!canvasRef.current) return;
 
       // Create Y-axes for each group
       const yScales: any = {};
