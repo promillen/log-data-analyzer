@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -46,14 +45,14 @@ export const TimeSeriesChart = ({
       // Dynamically import Chart.js to avoid SSR issues
       const [
         { Chart, registerables },
-        { default: zoomPlugin },
-        // Import the date adapter
-        'chartjs-adapter-date-fns'
+        { default: zoomPlugin }
       ] = await Promise.all([
         import('chart.js'),
-        import('chartjs-plugin-zoom'),
-        import('chartjs-adapter-date-fns')
+        import('chartjs-plugin-zoom')
       ]);
+
+      // Import the date adapter separately
+      await import('chartjs-adapter-date-fns');
 
       Chart.register(...registerables, zoomPlugin);
 
