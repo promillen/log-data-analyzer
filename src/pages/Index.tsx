@@ -56,8 +56,9 @@ const Index = () => {
   const cleanValue = (value: string): number | null => {
     console.log(`Raw value before cleaning: "${value}"`);
     
-    // Handle both quoted values like ="70.8" and plain numbers like 0 or 1722.54
-    const cleaned = value.replace(/^=?"?/, '').replace(/"?$/, '').trim();
+    // Handle Excel-exported CSV format with quotes and equals signs
+    // Remove = at start, then remove all quotes
+    let cleaned = value.replace(/^=/, '').replace(/"/g, '').trim();
     console.log(`After cleaning: "${cleaned}"`);
     
     if (cleaned === '' || cleaned === 'null' || cleaned === 'undefined') {
