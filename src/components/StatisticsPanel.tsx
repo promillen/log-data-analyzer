@@ -48,32 +48,40 @@ export const StatisticsPanel = ({
   const calculateStats = (variableId: string) => {
     console.log(`\n--- Calculating stats for: "${variableId}" ---`);
     
-    // Split only on the first underscore to handle variable names with dots
-    const underscoreIndex = variableId.indexOf('_');
-    if (underscoreIndex === -1) {
-      console.warn('Invalid variable ID format:', variableId);
+    // Use the same logic as TimeSeriesChart to find matching dataset
+    let matchingDatasetKey: string | null = null;
+    let matchingDataset: Dataset | null = null;
+    
+    for (const [datasetKey, dataset] of Object.entries(datasets)) {
+      console.log(`  Checking if "${variableId}" starts with "${datasetKey}_"`);
+      if (variableId.startsWith(datasetKey + '_')) {
+        matchingDatasetKey = datasetKey;
+        matchingDataset = dataset;
+        console.log(`  ✓ Match found! Dataset key: "${datasetKey}"`);
+        break;
+      }
+    }
+    
+    if (!matchingDatasetKey || !matchingDataset) {
+      console.log(`  ✗ No matching dataset found for variable: "${variableId}"`);
+      console.log(`  Available dataset keys:`, Object.keys(datasets));
       return null;
     }
     
-    const fileName = variableId.substring(0, underscoreIndex);
-    const variableName = variableId.substring(underscoreIndex + 1);
+    // Extract variable name by removing the dataset key prefix
+    const variableName = variableId.substring(matchingDatasetKey.length + 1); // +1 for the underscore
+    console.log(`  Extracted variable name: "${variableName}"`);
     
-    console.log(`  Dataset key: "${fileName}"`);
-    console.log(`  Variable name: "${variableName}"`);
-    
-    const dataset = datasets[fileName];
     const config = variableConfigs[variableId];
-    
-    console.log(`  Dataset found: ${!!dataset}`);
     console.log(`  Config found: ${!!config}`);
     
-    if (!dataset || !config) {
-      console.log(`  Missing dataset or config, returning null`);
+    if (!config) {
+      console.log(`  Missing config, returning null`);
       return null;
     }
 
-    console.log(`  Available variables in dataset:`, Object.keys(dataset.variables));
-    const variableData = dataset.variables[variableName];
+    console.log(`  Available variables in dataset:`, Object.keys(matchingDataset.variables));
+    const variableData = matchingDataset.variables[variableName];
     console.log(`  Variable data found: ${!!variableData}`);
     
     if (!variableData) {
