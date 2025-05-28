@@ -127,6 +127,11 @@ export const StatisticsPanel = ({
     return stats;
   };
 
+  // Helper function to get clean display name for variable
+  const getCleanDisplayName = (label: string) => {
+    return label.replace(/^deviceData\./, '');
+  };
+
   console.log('=== END STATISTICS PANEL DEBUG ===\n');
 
   return (
@@ -155,7 +160,7 @@ export const StatisticsPanel = ({
                       className="w-4 h-4 rounded-full border-2"
                       style={{ backgroundColor: config.color, borderColor: config.color }}
                     />
-                    <h4 className="font-semibold text-sm truncate">{config.label}</h4>
+                    <h4 className="font-semibold text-sm truncate">{getCleanDisplayName(config.label)}</h4>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
