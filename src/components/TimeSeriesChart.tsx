@@ -88,6 +88,8 @@ export const TimeSeriesChart = ({
         return;
       }
 
+      console.log('Creating chart with variables:', selectedVariables);
+
       // Group variables by Y-axis
       const yAxisGroups: Record<string, string[]> = {};
       selectedVariables.forEach(variableId => {
@@ -103,19 +105,42 @@ export const TimeSeriesChart = ({
 
       // Prepare chart data with optimized data processing
       const chartDatasets = selectedVariables.map(variableId => {
-        const [fileName, variableName] = variableId.split('_');
+        // Split only on the first underscore to handle variable names with dots
+        const underscoreIndex = variableId.indexOf('_');
+        if (underscoreIndex === -1) {
+          console.warn('Invalid variable ID format:', variableId);
+          return null;
+        }
+        
+        const fileName = variableId.substring(0, underscoreIndex);
+        const variableName = variableId.substring(underscoreIndex + 1);
+        
+        console.log(`Processing variable: ${variableId} -> fileName: ${fileName}, variableName: ${variableName}`);
+        
         const dataset = datasets[fileName];
         const config = variableConfigs[variableId];
         
-        if (!dataset || !config) return null;
+        if (!dataset || !config) {
+          console.warn('Missing dataset or config for:', variableId);
+          return null;
+        }
+
+        const variableData = dataset.variables[variableName];
+        if (!variableData) {
+          console.warn('No data found for variable:', variableName, 'in dataset:', fileName);
+          console.log('Available variables:', Object.keys(dataset.variables));
+          return null;
+        }
 
         // Optimize data by filtering out null values and decimating if needed
-        let data = dataset.variables[variableName]
+        let data = variableData
           ?.map(d => ({
             x: d.datetime.getTime(),
             y: d.value
           }))
           .filter(d => d.y !== null) || [];
+
+        console.log(`Variable ${variableName} has ${data.length} valid data points`);
 
         // Decimate data if there are too many points for better performance
         if (data.length > 3000) {
@@ -142,6 +167,8 @@ export const TimeSeriesChart = ({
           yAxisID: yAxisId
         };
       }).filter(Boolean);
+
+      console.log('Chart datasets created:', chartDatasets.length);
 
       // Create Y-axes for each group
       const yScales: any = {};
