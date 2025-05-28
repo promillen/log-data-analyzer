@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,7 @@ interface VariableConfig {
   color: string;
   yMin?: number;
   yMax?: number;
+  yAxisGroup?: string; // New property for grouping variables on same Y-axis
 }
 
 interface TimeSeriesChartProps {
@@ -86,6 +88,19 @@ export const TimeSeriesChart = ({
         return;
       }
 
+      // Group variables by Y-axis
+      const yAxisGroups: Record<string, string[]> = {};
+      selectedVariables.forEach(variableId => {
+        const config = variableConfigs[variableId];
+        if (!config) return;
+        
+        const groupKey = config.yAxisGroup || variableId; // Default to unique axis if no group
+        if (!yAxisGroups[groupKey]) {
+          yAxisGroups[groupKey] = [];
+        }
+        yAxisGroups[groupKey].push(variableId);
+      });
+
       // Prepare chart data with optimized data processing
       const chartDatasets = selectedVariables.map(variableId => {
         const [fileName, variableName] = variableId.split('_');
@@ -108,33 +123,53 @@ export const TimeSeriesChart = ({
           data = data.filter((_, index) => index % step === 0);
         }
 
+        const yAxisId = config.yAxisGroup || variableId;
+
         return {
           label: `${config.label} (${fileName})`,
           data,
           borderColor: config.color,
           backgroundColor: config.color + '20',
-          borderWidth: 1.5,
+          borderWidth: 2,
           fill: false,
-          tension: 0,
-          pointRadius: 0,
-          pointHoverRadius: 0,
+          tension: 0.1,
+          pointRadius: 3,
+          pointHoverRadius: 6,
+          pointBackgroundColor: config.color,
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
           spanGaps: true,
-          yAxisID: variableId
+          yAxisID: yAxisId
         };
       }).filter(Boolean);
 
-      // Create Y-axes for each variable
+      // Create Y-axes for each group
       const yScales: any = {};
-      selectedVariables.forEach((variableId, index) => {
-        const config = variableConfigs[variableId];
+      const groupKeys = Object.keys(yAxisGroups);
+      
+      groupKeys.forEach((groupKey, index) => {
+        const variablesInGroup = yAxisGroups[groupKey];
+        const firstVariable = variablesInGroup[0];
+        const config = variableConfigs[firstVariable];
+        
         if (!config) return;
 
-        yScales[variableId] = {
+        // Determine label for the axis
+        let axisLabel = config.label;
+        if (variablesInGroup.length > 1) {
+          // If multiple variables share this axis, show all labels
+          axisLabel = variablesInGroup
+            .map(varId => variableConfigs[varId]?.label)
+            .filter(Boolean)
+            .join(' / ');
+        }
+
+        yScales[groupKey] = {
           type: 'linear',
           position: index % 2 === 0 ? 'left' : 'right',
           title: {
             display: true,
-            text: config.label,
+            text: axisLabel,
             color: config.color
           },
           min: config.yMin,
@@ -167,11 +202,11 @@ export const TimeSeriesChart = ({
           },
           elements: {
             line: {
-              tension: 0
+              tension: 0.1
             },
             point: {
-              radius: 0,
-              hoverRadius: 0
+              radius: 3,
+              hoverRadius: 6
             }
           },
           scales: {
@@ -231,8 +266,7 @@ export const TimeSeriesChart = ({
             zoom: {
               pan: {
                 enabled: true,
-                mode: 'x',
-                modifierKey: null
+                mode: 'x'
               },
               zoom: {
                 wheel: {
@@ -256,9 +290,9 @@ export const TimeSeriesChart = ({
             }
           },
           onHover: (event, elements, chart) => {
-            const nativeEvent = event.native as MouseEvent;
-            if (!nativeEvent || !canvasRef.current) return;
+            if (!event.native || !canvasRef.current) return;
 
+            const nativeEvent = event.native as MouseEvent;
             const rect = canvasRef.current.getBoundingClientRect();
             const x = nativeEvent.clientX - rect.left;
             const y = nativeEvent.clientY - rect.top;
