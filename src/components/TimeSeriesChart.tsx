@@ -87,8 +87,16 @@ export const TimeSeriesChart = ({
         return;
       }
 
-      console.log('=== DEBUGGING CHART DATA ===');
+      console.log('=== DETAILED DEBUGGING START ===');
       console.log('Available datasets:', Object.keys(datasets));
+      console.log('Dataset details:');
+      Object.entries(datasets).forEach(([key, dataset]) => {
+        console.log(`  Dataset key: "${key}"`);
+        console.log(`  Dataset fileName: "${dataset.fileName}"`);
+        console.log(`  Variables in dataset:`, Object.keys(dataset.variables));
+        console.log(`  Sample variable data for first variable:`, dataset.variables[Object.keys(dataset.variables)[0]]?.slice(0, 2));
+      });
+      
       console.log('Available variable configs:', Object.keys(variableConfigs));
       console.log('Selected variables:', selectedVariables);
 
@@ -105,42 +113,53 @@ export const TimeSeriesChart = ({
         yAxisGroups[groupKey].push(variableId);
       });
 
-      // Prepare chart data with optimized data processing
+      // Prepare chart data with improved variable ID parsing
       const chartDatasets = selectedVariables.map(variableId => {
-        // Split only on the first underscore to handle variable names with dots
-        const underscoreIndex = variableId.indexOf('_');
-        if (underscoreIndex === -1) {
-          console.warn('Invalid variable ID format:', variableId);
+        console.log(`\n--- Processing variable ID: "${variableId}" ---`);
+        
+        // Find the matching dataset by checking if any dataset key is contained in the variable ID
+        let matchingDatasetKey: string | null = null;
+        let matchingDataset: Dataset | null = null;
+        
+        for (const [datasetKey, dataset] of Object.entries(datasets)) {
+          console.log(`  Checking if "${variableId}" starts with "${datasetKey}_"`);
+          if (variableId.startsWith(datasetKey + '_')) {
+            matchingDatasetKey = datasetKey;
+            matchingDataset = dataset;
+            console.log(`  ✓ Match found! Dataset key: "${datasetKey}"`);
+            break;
+          }
+        }
+        
+        if (!matchingDatasetKey || !matchingDataset) {
+          console.log(`  ✗ No matching dataset found for variable: "${variableId}"`);
+          console.log(`  Available dataset keys:`, Object.keys(datasets));
           return null;
         }
         
-        const fileName = variableId.substring(0, underscoreIndex);
-        const variableName = variableId.substring(underscoreIndex + 1);
+        // Extract variable name by removing the dataset key prefix
+        const variableName = variableId.substring(matchingDatasetKey.length + 1); // +1 for the underscore
+        console.log(`  Extracted variable name: "${variableName}"`);
         
-        console.log(`Processing variable: ${variableId}`);
-        console.log(`  -> fileName: "${fileName}"`);
-        console.log(`  -> variableName: "${variableName}"`);
-        
-        const dataset = datasets[fileName];
         const config = variableConfigs[variableId];
+        console.log(`  Config found: ${!!config}`);
         
-        console.log(`  -> dataset found: ${!!dataset}`);
-        console.log(`  -> config found: ${!!config}`);
-        
-        if (dataset) {
-          console.log(`  -> available variables in dataset:`, Object.keys(dataset.variables));
-          console.log(`  -> looking for variable: "${variableName}"`);
-          console.log(`  -> variable found: ${!!dataset.variables[variableName]}`);
-        }
-        
-        if (!dataset || !config) {
-          console.warn('Missing dataset or config for:', variableId);
+        if (!config) {
+          console.warn('Missing config for:', variableId);
           return null;
         }
 
-        const variableData = dataset.variables[variableName];
+        console.log(`  Available variables in dataset:`, Object.keys(matchingDataset.variables));
+        const variableData = matchingDataset.variables[variableName];
+        console.log(`  Variable data found: ${!!variableData}`);
+        
+        if (variableData) {
+          console.log(`  Variable data length: ${variableData.length}`);
+          console.log(`  First few data points:`, variableData.slice(0, 3));
+        }
+        
         if (!variableData) {
-          console.warn('No data found for variable:', variableName, 'in dataset:', fileName);
+          console.warn('No data found for variable:', variableName, 'in dataset:', matchingDatasetKey);
           return null;
         }
 
@@ -152,18 +171,19 @@ export const TimeSeriesChart = ({
           }))
           .filter(d => d.y !== null) || [];
 
-        console.log(`Variable ${variableName} has ${data.length} valid data points`);
+        console.log(`  Valid data points after filtering: ${data.length}`);
 
         // Decimate data if there are too many points for better performance
         if (data.length > 3000) {
           const step = Math.ceil(data.length / 1500);
           data = data.filter((_, index) => index % step === 0);
+          console.log(`  Data decimated to: ${data.length} points`);
         }
 
         const yAxisId = config.yAxisGroup || variableId;
 
-        return {
-          label: `${config.label} (${fileName})`,
+        const chartDataset = {
+          label: `${config.label} (${matchingDatasetKey})`,
           data,
           borderColor: config.color,
           backgroundColor: config.color + '20',
@@ -178,12 +198,21 @@ export const TimeSeriesChart = ({
           spanGaps: true,
           yAxisID: yAxisId
         };
+        
+        console.log(`  Created chart dataset with ${chartDataset.data.length} points`);
+        return chartDataset;
       }).filter(Boolean);
 
-      console.log('Chart datasets created:', chartDatasets.length);
-      console.log('=== END DEBUGGING ===');
+      console.log(`\nFinal chart datasets: ${chartDatasets.length}`);
+      chartDatasets.forEach((dataset, index) => {
+        console.log(`  Dataset ${index}: "${dataset?.label}" with ${dataset?.data?.length} points`);
+      });
+      console.log('=== DETAILED DEBUGGING END ===\n');
 
-      if (!canvasRef.current) return;
+      if (chartDatasets.length === 0) {
+        console.warn('No valid chart datasets created');
+        return;
+      }
 
       // Create Y-axes for each group
       const yScales: any = {};
