@@ -589,21 +589,19 @@ const Index = () => {
 
         {/* Main Content */}
         {totalDatasets > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Controls Panel */}
-            <div className="lg:col-span-1">
-              <DatasetControls
-                datasets={datasets}
-                variableConfigs={variableConfigs}
-                selectedVariables={selectedVariables}
-                onVariableConfigChange={setVariableConfigs}
-                onSelectedVariablesChange={setSelectedVariables}
-                onRemoveDataset={removeDataset}
-              />
-            </div>
+          <div className="space-y-6">
+            {/* Dataset Controls - Now displayed above the chart */}
+            <DatasetControls
+              datasets={datasets}
+              variableConfigs={variableConfigs}
+              selectedVariables={selectedVariables}
+              onVariableConfigChange={setVariableConfigs}
+              onSelectedVariablesChange={setSelectedVariables}
+              onRemoveDataset={removeDataset}
+            />
 
             {/* Chart and Statistics */}
-            <div className="lg:col-span-3 space-y-6">
+            <div className="space-y-6">
               <TimeSeriesChart
                 datasets={datasets}
                 variableConfigs={variableConfigs}

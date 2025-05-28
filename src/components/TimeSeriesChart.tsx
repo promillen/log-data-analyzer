@@ -22,7 +22,7 @@ interface VariableConfig {
   color: string;
   yMin?: number;
   yMax?: number;
-  yAxisGroup?: string; // New property for grouping variables on same Y-axis
+  yAxisGroup?: string;
 }
 
 interface TimeSeriesChartProps {
