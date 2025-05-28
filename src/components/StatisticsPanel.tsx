@@ -40,7 +40,16 @@ export const StatisticsPanel = ({
   }
 
   const calculateStats = (variableId: string) => {
-    const [fileName, variableName] = variableId.split('_');
+    // Split only on the first underscore to handle variable names with dots
+    const underscoreIndex = variableId.indexOf('_');
+    if (underscoreIndex === -1) {
+      console.warn('Invalid variable ID format:', variableId);
+      return null;
+    }
+    
+    const fileName = variableId.substring(0, underscoreIndex);
+    const variableName = variableId.substring(underscoreIndex + 1);
+    
     const dataset = datasets[fileName];
     const config = variableConfigs[variableId];
     

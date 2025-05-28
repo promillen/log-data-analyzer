@@ -1,5 +1,3 @@
-
-
 import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -277,7 +275,7 @@ const Index = () => {
         
         setDatasets(prev => ({ ...prev, [file.name]: parsedData }));
         
-        // Initialize variable configs
+        // Initialize variable configs - use full filename as key
         const newConfigs: Record<string, VariableConfig> = {};
         parsedData.headers.forEach(header => {
           const variableId = `${file.name}_${header}`;
@@ -465,7 +463,7 @@ const Index = () => {
                   Upload .txt, .csv, or Excel files with format: timestamp, variable1, variable2, ...
                 </p>
                 <p className="text-sm text-gray-500 mt-1">
-                  Supported timestamp format: DD/MM/YYYY HH.MM.SS
+                  Supported timestamp format: YYYY-MM-DD HH:MM:SS or DD/MM/YYYY HH.MM.SS
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 justify-center">
