@@ -1,5 +1,3 @@
-
-
 import { useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -69,7 +67,7 @@ export const TimeSeriesChart = ({
         return;
       }
 
-      // Prepare chart data with optimized data processing
+      // Prepare chart data
       const chartDatasets = selectedVariables.map(variableId => {
         const [fileName, variableName] = variableId.split('_');
         const dataset = datasets[fileName];
@@ -77,30 +75,23 @@ export const TimeSeriesChart = ({
         
         if (!dataset || !config) return null;
 
-        // Optimize data by filtering out null values and decimating if needed
-        let data = dataset.variables[variableName]
+        const data = dataset.variables[variableName]
           ?.map(d => ({
             x: d.datetime.getTime(),
             y: d.value
           }))
           .filter(d => d.y !== null) || [];
 
-        // Decimate data if there are too many points for better performance
-        if (data.length > 5000) {
-          const step = Math.ceil(data.length / 2000);
-          data = data.filter((_, index) => index % step === 0);
-        }
-
         return {
           label: `${config.label} (${fileName})`,
           data,
           borderColor: config.color,
           backgroundColor: config.color + '20',
-          borderWidth: 1.5,
+          borderWidth: 2,
           fill: false,
-          tension: 0,
-          pointRadius: 0,
-          pointHoverRadius: 3,
+          tension: 0.1,
+          pointRadius: 1,
+          pointHoverRadius: 4,
           spanGaps: true,
           yAxisID: variableId
         };
@@ -126,8 +117,7 @@ export const TimeSeriesChart = ({
             drawOnChartArea: index === 0 // Only show grid for first axis
           },
           ticks: {
-            color: config.color,
-            maxTicksLimit: 8
+            color: config.color
           }
         };
       });
@@ -144,20 +134,8 @@ export const TimeSeriesChart = ({
           responsive: true,
           maintainAspectRatio: false,
           animation: {
-            duration: 0 // Disable animations for better performance
-          },
-          interaction: {
-            mode: 'nearest',
-            axis: 'x',
-            intersect: false
-          },
-          elements: {
-            line: {
-              tension: 0 // Straight lines for better performance
-            },
-            point: {
-              radius: 0 // Hide points by default for better performance
-            }
+            duration: 750,
+            easing: 'easeInOutQuart'
           },
           scales: {
             x: {
@@ -180,7 +158,7 @@ export const TimeSeriesChart = ({
                 }
               },
               ticks: {
-                maxTicksLimit: 10,
+                maxTicksLimit: 15,
                 color: '#6B7280'
               },
               grid: {
@@ -219,9 +197,6 @@ export const TimeSeriesChart = ({
               borderColor: '#374151',
               borderWidth: 1,
               cornerRadius: 8,
-              animation: {
-                duration: 0 // Disable tooltip animations
-              },
               callbacks: {
                 title: function(context: any) {
                   if (context.length > 0) {
@@ -241,32 +216,23 @@ export const TimeSeriesChart = ({
             zoom: {
               pan: {
                 enabled: true,
-                mode: 'x',
-                threshold: 5,
-                modifierKey: null
+                mode: 'x'
               },
               zoom: {
                 wheel: {
-                  enabled: true,
-                  speed: 0.1
+                  enabled: true
                 },
                 pinch: {
                   enabled: true
                 },
                 mode: 'x'
-              },
-              limits: {
-                x: {
-                  minRange: 60 * 1000 // Minimum 1 minute range
-                }
               }
             }
           },
-          onHover: (event, elements) => {
-            // Optimize hover performance
-            if (canvasRef.current) {
-              canvasRef.current.style.cursor = elements.length > 0 ? 'crosshair' : 'default';
-            }
+          interaction: {
+            mode: 'nearest',
+            axis: 'x',
+            intersect: false
           }
         }
       });
@@ -323,4 +289,3 @@ export const TimeSeriesChart = ({
     </Card>
   );
 };
-
