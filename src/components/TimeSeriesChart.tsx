@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -117,7 +118,10 @@ export const TimeSeriesChart = ({
           fill: false,
           tension: 0,
           pointRadius: 0,
-          pointHoverRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBorderWidth: 2,
+          pointHoverBackgroundColor: config.color,
+          pointHoverBorderColor: '#ffffff',
           spanGaps: true,
           yAxisID: variableId
         };
@@ -171,7 +175,7 @@ export const TimeSeriesChart = ({
             },
             point: {
               radius: 0,
-              hoverRadius: 0
+              hoverRadius: 4
             }
           },
           scales: {
@@ -272,26 +276,43 @@ export const TimeSeriesChart = ({
 
             if (!dataX) {
               setTooltip(prev => ({ ...prev, visible: false }));
+              // Reset all points to invisible
+              chart.data.datasets.forEach((dataset: any) => {
+                if (dataset.pointRadius) {
+                  dataset.pointRadius = 0;
+                }
+              });
+              chart.update('none');
               return;
             }
 
-            // Find closest data points for all datasets
+            // Find closest data points for all datasets and show visual indicators
             const values: Array<{ label: string; value: number; color: string }> = [];
             
-            chartDatasets.forEach((dataset: any) => {
+            chartDatasets.forEach((dataset: any, datasetIndex) => {
               if (!dataset?.data) return;
               
               // Find closest point
               let closest = dataset.data[0];
               let minDiff = Math.abs(closest.x - dataX);
+              let closestIndex = 0;
               
-              dataset.data.forEach((point: any) => {
+              dataset.data.forEach((point: any, index: number) => {
                 const diff = Math.abs(point.x - dataX);
                 if (diff < minDiff) {
                   minDiff = diff;
                   closest = point;
+                  closestIndex = index;
                 }
               });
+
+              // Reset all points for this dataset to invisible
+              const chartDataset = chart.data.datasets[datasetIndex] as any;
+              if (Array.isArray(chartDataset.pointRadius)) {
+                chartDataset.pointRadius = chartDataset.pointRadius.map(() => 0);
+              } else {
+                chartDataset.pointRadius = new Array(dataset.data.length).fill(0);
+              }
 
               if (closest && minDiff < 60000) { // Within 1 minute
                 values.push({
@@ -299,8 +320,16 @@ export const TimeSeriesChart = ({
                   value: closest.y,
                   color: dataset.borderColor
                 });
+
+                // Show point at the closest data point
+                if (Array.isArray(chartDataset.pointRadius)) {
+                  chartDataset.pointRadius[closestIndex] = 4;
+                }
               }
             });
+
+            // Update chart to show/hide points
+            chart.update('none');
 
             if (values.length > 0) {
               const time = new Date(dataX).toLocaleString('en-GB', {
