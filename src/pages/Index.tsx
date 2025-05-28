@@ -1,4 +1,3 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -54,95 +53,144 @@ const Index = () => {
     return color;
   };
 
+  const cleanValue = (value: string): number | null => {
+    // Remove equals signs and quotes: ="70.8" -> 70.8
+    const cleaned = value.replace(/^=?"?/, '').replace(/"?$/, '').trim();
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parsed;
+  };
+
+  const parseTimestamp = (timestampStr: string): Date | null => {
+    // Format: 21/05/2025 23.59.48 or similar variations
+    const cleanTimestamp = timestampStr.trim();
+    
+    // Split by space to separate date and time
+    const parts = cleanTimestamp.split(/\s+/);
+    if (parts.length !== 2) return null;
+    
+    const [dateStr, timeStr] = parts;
+    
+    // Parse date (DD/MM/YYYY or DD-MM-YYYY)
+    const dateParts = dateStr.split(/[\/\-]/);
+    if (dateParts.length !== 3) return null;
+    
+    const day = parseInt(dateParts[0]);
+    const month = parseInt(dateParts[1]) - 1; // JS months are 0-indexed
+    const year = parseInt(dateParts[2]);
+    
+    // Parse time (HH.MM.SS or HH:MM:SS)
+    const timeParts = timeStr.split(/[\.:]/).map(part => parseInt(part));
+    if (timeParts.length < 2) return null;
+    
+    const hour = timeParts[0] || 0;
+    const minute = timeParts[1] || 0;
+    const second = timeParts[2] || 0;
+    
+    return new Date(year, month, day, hour, minute, second);
+  };
+
+  const parseExcelFile = useCallback(async (file: File): Promise<Dataset> => {
+    const XLSX = await import('xlsx');
+    
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // Use first sheet
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          
+          // Convert to JSON with header row
+          const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          
+          if (jsonData.length < 2) {
+            throw new Error('Excel file must have at least a header row and one data row');
+          }
+          
+          // Convert to CSV-like format
+          const csvContent = jsonData.map((row: any[]) => row.join('\t')).join('\n');
+          const dataset = parseDataFile(csvContent, file.name);
+          resolve(dataset);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read Excel file'));
+      reader.readAsArrayBuffer(file);
+    });
+  }, []);
+
   const parseDataFile = useCallback((fileContent: string, fileName: string): Dataset => {
-    const lines = fileContent.trim().split('\n');
-    if (lines.length === 0) {
-      throw new Error('No data found in file');
+    const lines = fileContent.trim().split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      throw new Error('File must have at least a header row and one data row');
     }
 
     // Detect delimiter
     const firstLine = lines[0];
     let delimiter = '\t';
-    let firstLineParts = firstLine.split(delimiter);
-    
-    if (firstLineParts.length < 3) {
+    if (firstLine.split('\t').length < 2) {
       delimiter = ',';
-      firstLineParts = firstLine.split(delimiter);
-    }
-
-    let hasHeader = false;
-    let headers: string[] = [];
-    let dataStartIndex = 0;
-
-    // Check for header
-    const effectiveColumns = firstLineParts.filter(col => col.trim() !== '');
-    if (effectiveColumns.length >= 3) {
-      const potentialValueColumn = effectiveColumns[2];
-      if (isNaN(parseFloat(potentialValueColumn))) {
-        hasHeader = true;
-        headers = effectiveColumns.slice(2);
-        dataStartIndex = 1;
+      if (firstLine.split(',').length < 2) {
+        delimiter = ';';
       }
     }
 
-    if (!hasHeader) {
-      const dataLine = lines[1] || lines[0];
-      const dataParts = dataLine.split(delimiter).filter(col => col.trim() !== '');
-      for (let i = 2; i < dataParts.length; i++) {
-        headers.push(`Variable ${i - 1}`);
-      }
+    // Parse header
+    const headerParts = lines[0].split(delimiter).map(h => h.trim());
+    if (headerParts.length < 2) {
+      throw new Error('File must have at least timestamp and one variable column');
     }
 
+    // First column should be timestamp, rest are variables
+    const headers = headerParts.slice(1);
+    
     const variables: Record<string, DataPoint[]> = {};
     headers.forEach(header => {
       variables[header] = [];
     });
 
     let validRows = 0;
-    for (let i = dataStartIndex; i < lines.length; i++) {
+    for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
 
-      const parts = line.split(delimiter);
-      const effectiveParts = parts.filter(part => part.trim() !== '');
+      const parts = line.split(delimiter).map(part => part.trim());
+      if (parts.length < 2) continue;
+
+      const [timestampStr, ...values] = parts;
       
-      if (effectiveParts.length < 3) continue;
-
-      const [dateStr, timeStr, ...values] = effectiveParts;
-
-      // Parse date and time
-      let dateParts = dateStr.split('/');
-      if (dateParts.length !== 3) {
-        dateParts = dateStr.split('-');
-      }
-
-      let timeParts = timeStr.split('.');
-      if (timeParts.length !== 2) {
-        timeParts = timeStr.split(':');
-      }
-
-      if (dateParts.length !== 3 || timeParts.length !== 2) {
+      // Parse timestamp
+      const datetime = parseTimestamp(timestampStr);
+      if (!datetime || isNaN(datetime.getTime())) {
+        console.warn(`Invalid timestamp on line ${i + 1}: ${timestampStr}`);
         continue;
       }
 
-      const day = parseInt(dateParts[0]);
-      const month = parseInt(dateParts[1]) - 1;
-      const year = parseInt(dateParts[2]);
-      const hour = parseInt(timeParts[0]);
-      const minute = parseInt(timeParts[1]);
-
-      const datetime = new Date(year, month, day, hour, minute);
       validRows++;
 
+      // Parse values for each variable
       headers.forEach((header, index) => {
         if (index < values.length) {
-          const value = parseFloat(values[index]);
+          const value = cleanValue(values[index]);
           variables[header].push({
             datetime: datetime,
-            value: isNaN(value) ? null : value
+            value: value
+          });
+        } else {
+          variables[header].push({
+            datetime: datetime,
+            value: null
           });
         }
       });
+    }
+
+    if (validRows === 0) {
+      throw new Error('No valid data rows found');
     }
 
     const colors: Record<string, string> = {};
@@ -159,7 +207,7 @@ const Index = () => {
     };
   }, []);
 
-  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -167,55 +215,54 @@ const Index = () => {
     let errorCount = 0;
     let processedCount = 0;
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        try {
-          const fileContent = e.target?.result as string;
-          const parsedData = parseDataFile(fileContent, file.name);
-          
-          setDatasets(prev => ({ ...prev, [file.name]: parsedData }));
-          
-          // Initialize variable configs
-          const newConfigs: Record<string, VariableConfig> = {};
-          parsedData.headers.forEach(header => {
-            const variableId = `${file.name}_${header}`;
-            newConfigs[variableId] = {
-              enabled: false,
-              label: header,
-              color: parsedData.colors[header]
-            };
+    for (const file of Array.from(files)) {
+      try {
+        let parsedData: Dataset;
+        
+        if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
+          parsedData = await parseExcelFile(file);
+        } else {
+          // Handle .txt, .csv, and other text files
+          const fileContent = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsText(file);
           });
           
-          setVariableConfigs(prev => ({ ...prev, ...newConfigs }));
-          successCount++;
-        } catch (error) {
-          console.error('Error processing file:', file.name, error);
-          errorCount++;
-          toast.error(`Error in ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        } finally {
-          processedCount++;
-          
-          if (processedCount === files.length) {
-            if (successCount > 0) {
-              toast.success(`Successfully loaded ${successCount} file(s)`);
-            }
-          }
+          parsedData = parseDataFile(fileContent, file.name);
         }
-      };
-      
-      reader.onerror = () => {
+        
+        setDatasets(prev => ({ ...prev, [file.name]: parsedData }));
+        
+        // Initialize variable configs
+        const newConfigs: Record<string, VariableConfig> = {};
+        parsedData.headers.forEach(header => {
+          const variableId = `${file.name}_${header}`;
+          newConfigs[variableId] = {
+            enabled: false,
+            label: header,
+            color: parsedData.colors[header]
+          };
+        });
+        
+        setVariableConfigs(prev => ({ ...prev, ...newConfigs }));
+        successCount++;
+      } catch (error) {
+        console.error('Error processing file:', file.name, error);
         errorCount++;
+        toast.error(`Error in ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
         processedCount++;
-        toast.error(`Error reading ${file.name}`);
-      };
-      
-      reader.readAsText(file);
-    });
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Successfully loaded ${successCount} file(s)`);
+    }
 
     event.target.value = '';
-  }, [parseDataFile]);
+  }, [parseDataFile, parseExcelFile]);
 
   const clearAllData = () => {
     setDatasets({});
@@ -373,7 +420,10 @@ const Index = () => {
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">Load Data Files</h3>
                 <p className="text-gray-600 mt-2">
-                  Upload comma or tab-separated files with format: Date, Time, Variable1, Variable2, ...
+                  Upload .txt, .csv, or Excel files with format: timestamp, variable1, variable2, ...
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Supported timestamp format: DD/MM/YYYY HH.MM.SS
                 </p>
               </div>
               <div className="flex flex-wrap gap-3 justify-center">
@@ -411,7 +461,7 @@ const Index = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt,.csv"
+                accept=".txt,.csv,.xlsx,.xls"
                 multiple
                 onChange={handleFileUpload}
                 className="hidden"
