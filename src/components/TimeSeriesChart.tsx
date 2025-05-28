@@ -183,15 +183,15 @@ export const TimeSeriesChart = ({
         const yAxisId = config.yAxisGroup || variableId;
 
         const chartDataset = {
-          label: config.label, // Remove filename from label
+          label: config.label,
           data,
           borderColor: config.color,
-          backgroundColor: config.color + '10', // More transparent background
-          borderWidth: 3, // Thicker lines
+          backgroundColor: config.color + '10',
+          borderWidth: 2, // Slightly thinner lines
           fill: false,
-          tension: 0.2, // Slightly less smooth for more definition
-          pointRadius: 0, // Hide points completely for cleaner lines
-          pointHoverRadius: 6, // Show larger points on hover
+          tension: 0.2,
+          pointRadius: 0,
+          pointHoverRadius: 6,
           pointBackgroundColor: config.color,
           pointBorderColor: '#ffffff',
           pointBorderWidth: 2,
@@ -273,12 +273,12 @@ export const TimeSeriesChart = ({
           },
           elements: {
             line: {
-              tension: 0.2, // Slightly less smooth for more definition
-              borderWidth: 3 // Thicker lines globally
+              tension: 0.2,
+              borderWidth: 2 // Slightly thinner lines globally
             },
             point: {
-              radius: 0, // Hide points by default
-              hoverRadius: 6 // Show on hover
+              radius: 0,
+              hoverRadius: 6
             }
           },
           scales: {
@@ -418,9 +418,24 @@ export const TimeSeriesChart = ({
                 second: '2-digit'
               });
 
-              // Position tooltip away from cursor
-              const tooltipX = x > rect.width / 2 ? x - 20 : x + 20;
-              const tooltipY = y > 100 ? y - 20 : y + 20;
+              // Better tooltip positioning - keep it away from cursor and chart edges
+              let tooltipX = x + 15;
+              let tooltipY = y - 15;
+              
+              // Adjust if tooltip would go off right edge
+              if (tooltipX > rect.width - 200) {
+                tooltipX = x - 215;
+              }
+              
+              // Adjust if tooltip would go off top edge
+              if (tooltipY < 10) {
+                tooltipY = y + 15;
+              }
+              
+              // Adjust if tooltip would go off bottom edge
+              if (tooltipY > rect.height - 100) {
+                tooltipY = y - 85;
+              }
 
               setTooltip({
                 x: tooltipX,
@@ -497,8 +512,7 @@ export const TimeSeriesChart = ({
               className="absolute z-50 bg-gray-900 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-700 pointer-events-none"
               style={{
                 left: `${tooltip.x}px`,
-                top: `${tooltip.y}px`,
-                transform: tooltip.x > 200 ? 'translateX(-100%)' : 'translateX(0)'
+                top: `${tooltip.y}px`
               }}
             >
               <div className="font-semibold mb-2 text-gray-200">
