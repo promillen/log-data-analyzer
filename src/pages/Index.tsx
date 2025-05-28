@@ -247,6 +247,11 @@ const Index = () => {
     };
   }, []);
 
+  const getCleanFileName = (fileName: string): string => {
+    // Remove file extension and clean up the name for use as dataset key
+    return fileName.replace(/\.(csv|txt|xlsx|xls)$/i, '');
+  };
+
   const handleFileUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -273,12 +278,14 @@ const Index = () => {
           parsedData = parseDataFile(fileContent, file.name);
         }
         
-        setDatasets(prev => ({ ...prev, [file.name]: parsedData }));
+        // Use clean filename as dataset key
+        const cleanFileName = getCleanFileName(file.name);
+        setDatasets(prev => ({ ...prev, [cleanFileName]: parsedData }));
         
-        // Initialize variable configs - use full filename as key
+        // Initialize variable configs - use clean filename as key
         const newConfigs: Record<string, VariableConfig> = {};
         parsedData.headers.forEach(header => {
-          const variableId = `${file.name}_${header}`;
+          const variableId = `${cleanFileName}_${header}`;
           newConfigs[variableId] = {
             enabled: false,
             label: header,
@@ -350,7 +357,11 @@ const Index = () => {
     // Get all unique timestamps
     const allTimestamps = new Set<number>();
     selectedVariables.forEach(varId => {
-      const [fileName, variableName] = varId.split('_');
+      const underscoreIndex = varId.indexOf('_');
+      if (underscoreIndex === -1) return;
+      
+      const fileName = varId.substring(0, underscoreIndex);
+      const variableName = varId.substring(underscoreIndex + 1);
       const dataset = datasets[fileName];
       if (dataset && dataset.variables[variableName]) {
         dataset.variables[variableName].forEach(point => {
@@ -369,7 +380,11 @@ const Index = () => {
       ];
 
       selectedVariables.forEach(varId => {
-        const [fileName, variableName] = varId.split('_');
+        const underscoreIndex = varId.indexOf('_');
+        if (underscoreIndex === -1) return;
+        
+        const fileName = varId.substring(0, underscoreIndex);
+        const variableName = varId.substring(underscoreIndex + 1);
         const dataset = datasets[fileName];
         const dataPoint = dataset?.variables[variableName]?.find(
           point => point.datetime.getTime() === timestamp
