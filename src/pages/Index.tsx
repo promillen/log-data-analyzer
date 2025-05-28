@@ -1,4 +1,5 @@
 
+
 import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,25 +63,35 @@ const Index = () => {
   };
 
   const parseTimestamp = (timestampStr: string): Date | null => {
-    const cleanTimestamp = timestampStr.trim();
+    // Remove any surrounding quotes first
+    const cleanTimestamp = timestampStr.replace(/^"?/, '').replace(/"?$/, '').trim();
+    
+    console.log(`Parsing timestamp: "${timestampStr}" -> cleaned: "${cleanTimestamp}"`);
     
     // Try ISO format first: YYYY-MM-DD HH:MM:SS
     if (cleanTimestamp.includes('-') && cleanTimestamp.length >= 19) {
       const date = new Date(cleanTimestamp);
       if (!isNaN(date.getTime())) {
+        console.log(`Successfully parsed ISO format: ${date}`);
         return date;
       }
     }
     
     // Fallback to original format: DD/MM/YYYY HH.MM or DD/MM/YYYY HH.MM.SS
     const parts = cleanTimestamp.split(/\s+/);
-    if (parts.length !== 2) return null;
+    if (parts.length !== 2) {
+      console.warn(`Invalid timestamp format - wrong number of parts: ${cleanTimestamp}`);
+      return null;
+    }
     
     const [dateStr, timeStr] = parts;
     
     // Parse date (DD/MM/YYYY or DD-MM-YYYY)
     const dateParts = dateStr.split(/[\/\-]/);
-    if (dateParts.length !== 3) return null;
+    if (dateParts.length !== 3) {
+      console.warn(`Invalid date format: ${dateStr}`);
+      return null;
+    }
     
     const day = parseInt(dateParts[0]);
     const month = parseInt(dateParts[1]) - 1; // JS months are 0-indexed
@@ -88,7 +99,10 @@ const Index = () => {
     
     // Parse time - handle both HH.MM and HH.MM.SS formats
     const timeParts = timeStr.split(/[\.:]/).map(part => parseInt(part));
-    if (timeParts.length < 2) return null;
+    if (timeParts.length < 2) {
+      console.warn(`Invalid time format: ${timeStr}`);
+      return null;
+    }
     
     const hour = timeParts[0] || 0;
     const minute = timeParts[1] || 0;
@@ -102,6 +116,7 @@ const Index = () => {
       return null;
     }
     
+    console.log(`Successfully parsed DD/MM/YYYY format: ${date}`);
     return date;
   };
 
