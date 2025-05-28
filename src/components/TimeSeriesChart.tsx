@@ -186,15 +186,15 @@ export const TimeSeriesChart = ({
           label: config.label, // Remove filename from label
           data,
           borderColor: config.color,
-          backgroundColor: config.color + '20',
-          borderWidth: 2,
+          backgroundColor: config.color + '10', // More transparent background
+          borderWidth: 3, // Thicker lines
           fill: false,
-          tension: 0.4, // Increase tension for smoother curves
-          pointRadius: 1, // Reduce point size to emphasize lines
-          pointHoverRadius: 4,
+          tension: 0.2, // Slightly less smooth for more definition
+          pointRadius: 0, // Hide points completely for cleaner lines
+          pointHoverRadius: 6, // Show larger points on hover
           pointBackgroundColor: config.color,
           pointBorderColor: '#ffffff',
-          pointBorderWidth: 1,
+          pointBorderWidth: 2,
           spanGaps: true,
           yAxisID: yAxisId
         };
@@ -273,11 +273,12 @@ export const TimeSeriesChart = ({
           },
           elements: {
             line: {
-              tension: 0.4 // Smoother curves
+              tension: 0.2, // Slightly less smooth for more definition
+              borderWidth: 3 // Thicker lines globally
             },
             point: {
-              radius: 1, // Smaller points by default
-              hoverRadius: 4
+              radius: 0, // Hide points by default
+              hoverRadius: 6 // Show on hover
             }
           },
           scales: {
@@ -417,9 +418,13 @@ export const TimeSeriesChart = ({
                 second: '2-digit'
               });
 
+              // Position tooltip away from cursor
+              const tooltipX = x > rect.width / 2 ? x - 20 : x + 20;
+              const tooltipY = y > 100 ? y - 20 : y + 20;
+
               setTooltip({
-                x: x + 10,
-                y: y - 10,
+                x: tooltipX,
+                y: tooltipY,
                 visible: true,
                 time,
                 values
