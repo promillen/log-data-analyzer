@@ -1,3 +1,4 @@
+
 import { useState, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -61,10 +62,17 @@ const Index = () => {
   };
 
   const parseTimestamp = (timestampStr: string): Date | null => {
-    // Handle formats like: 21/05/2025 23.59 or 21/05/2025 23.59.48
     const cleanTimestamp = timestampStr.trim();
     
-    // Split by space to separate date and time
+    // Try ISO format first: YYYY-MM-DD HH:MM:SS
+    if (cleanTimestamp.includes('-') && cleanTimestamp.length >= 19) {
+      const date = new Date(cleanTimestamp);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+    
+    // Fallback to original format: DD/MM/YYYY HH.MM or DD/MM/YYYY HH.MM.SS
     const parts = cleanTimestamp.split(/\s+/);
     if (parts.length !== 2) return null;
     
@@ -137,12 +145,12 @@ const Index = () => {
       throw new Error('File must have at least a header row and one data row');
     }
 
-    // Detect delimiter - try tab first, then comma, then semicolon
+    // Detect delimiter - prioritize comma for CSV, then tab, then semicolon
     const firstLine = lines[0];
-    let delimiter = '\t';
-    if (firstLine.split('\t').length < 2) {
-      delimiter = ',';
-      if (firstLine.split(',').length < 2) {
+    let delimiter = ',';
+    if (firstLine.split(',').length < 2) {
+      delimiter = '\t';
+      if (firstLine.split('\t').length < 2) {
         delimiter = ';';
       }
     }
