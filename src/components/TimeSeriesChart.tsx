@@ -58,6 +58,70 @@ export const TimeSeriesChart = ({
     values: []
   });
 
+  // Function to calculate date range from selected variables
+  const getDateRangeTitle = () => {
+    if (selectedVariables.length === 0) {
+      return 'Time Series Data Visualization';
+    }
+
+    let allDates: Date[] = [];
+
+    selectedVariables.forEach(variableId => {
+      // Find the matching dataset
+      let matchingDatasetKey: string | null = null;
+      let matchingDataset: Dataset | null = null;
+      
+      for (const [datasetKey, dataset] of Object.entries(datasets)) {
+        if (variableId.startsWith(datasetKey + '_')) {
+          matchingDatasetKey = datasetKey;
+          matchingDataset = dataset;
+          break;
+        }
+      }
+      
+      if (!matchingDatasetKey || !matchingDataset) return;
+      
+      // Extract variable name
+      const variableName = variableId.substring(matchingDatasetKey.length + 1);
+      const variableData = matchingDataset.variables[variableName];
+      
+      if (variableData) {
+        variableData.forEach(point => {
+          if (point.value !== null) {
+            allDates.push(point.datetime);
+          }
+        });
+      }
+    });
+
+    if (allDates.length === 0) {
+      return 'Time Series Data Visualization';
+    }
+
+    // Sort dates and get min/max
+    allDates.sort((a, b) => a.getTime() - b.getTime());
+    const minDate = allDates[0];
+    const maxDate = allDates[allDates.length - 1];
+
+    // Format dates as DD/MM/YYYY
+    const formatDate = (date: Date) => {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
+    const minDateStr = formatDate(minDate);
+    const maxDateStr = formatDate(maxDate);
+
+    // If same date, show just one date, otherwise show range
+    if (minDateStr === maxDateStr) {
+      return minDateStr;
+    } else {
+      return `${minDateStr} - ${maxDateStr}`;
+    }
+  };
+
   useEffect(() => {
     const loadChartJS = async () => {
       if (typeof window === 'undefined') return;
@@ -336,7 +400,7 @@ export const TimeSeriesChart = ({
           plugins: {
             title: {
               display: true,
-              text: 'Time Series Data Visualization',
+              text: getDateRangeTitle(),
               font: {
                 size: 18,
                 weight: 'bold'
