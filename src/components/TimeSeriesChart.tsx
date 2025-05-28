@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -233,14 +232,12 @@ export const TimeSeriesChart = ({
               pan: {
                 enabled: true,
                 mode: 'x',
-                threshold: 10,
                 modifierKey: null
               },
               zoom: {
                 wheel: {
                   enabled: true,
-                  speed: 0.05,
-                  threshold: 2
+                  speed: 0.1
                 },
                 pinch: {
                   enabled: true
@@ -248,6 +245,7 @@ export const TimeSeriesChart = ({
                 mode: 'x',
                 onZoomStart: () => {
                   setTooltip(prev => ({ ...prev, visible: false }));
+                  return true;
                 }
               },
               limits: {
@@ -258,14 +256,18 @@ export const TimeSeriesChart = ({
             }
           },
           onHover: (event, elements, chart) => {
-            if (!event.native || !canvasRef.current) return;
+            const nativeEvent = event.native as MouseEvent;
+            if (!nativeEvent || !canvasRef.current) return;
 
             const rect = canvasRef.current.getBoundingClientRect();
-            const x = event.native.clientX - rect.left;
-            const y = event.native.clientY - rect.top;
+            const x = nativeEvent.clientX - rect.left;
+            const y = nativeEvent.clientY - rect.top;
 
             // Get the position in chart coordinates
-            const canvasPosition = Chart.helpers.getRelativePosition(event, chart);
+            const canvasPosition = {
+              x: nativeEvent.offsetX,
+              y: nativeEvent.offsetY
+            };
             const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
 
             if (!dataX) {
