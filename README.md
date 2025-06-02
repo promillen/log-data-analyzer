@@ -1,73 +1,85 @@
-# Welcome to your Lovable project
 
-## Project info
+# Log Data Analyzer
 
-**URL**: https://lovable.dev/projects/eb275216-2e90-4554-8c01-9fb958b3e8af
+A professional web application for analyzing and visualizing time series log data. Built with modern web technologies to provide interactive data exploration and statistical analysis capabilities.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- **File Upload & Processing**: Support for CSV and Excel files containing time series data
+- **Interactive Data Visualization**: Dynamic charts with zoom and pan capabilities using Chart.js
+- **Statistical Analysis**: Comprehensive statistics including min, max, average, median, standard deviation, and range
+- **Multi-Variable Support**: Analyze multiple variables simultaneously with customizable Y-axis groupings
+- **Real-time Configuration**: Enable/disable variables, customize colors, and set axis ranges
+- **Responsive Design**: Modern UI built with shadcn/ui components and Tailwind CSS
 
-**Use Lovable**
+## Technology Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/eb275216-2e90-4554-8c01-9fb958b3e8af) and start prompting.
+- **Frontend**: React 18 with TypeScript
+- **Build Tool**: Vite for fast development and building
+- **Styling**: Tailwind CSS with shadcn/ui component library
+- **Charts**: Chart.js with zoom and pan plugins
+- **Data Processing**: XLSX library for Excel file support
+- **Icons**: Lucide React icon library
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+### Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js (version 16 or higher)
+- npm or yarn package manager
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Installation
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+1. Clone the repository:
+```bash
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+2. Install dependencies:
+```bash
+npm install
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+3. Start the development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+4. Open your browser and navigate to `http://localhost:5173`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Usage
 
-**Use GitHub Codespaces**
+1. **Upload Data**: Click the upload area to select CSV or Excel files containing your time series data
+2. **Configure Variables**: Use the dataset controls panel to:
+   - Enable/disable specific variables for visualization
+   - Customize variable colors
+   - Set custom Y-axis ranges
+   - Group variables on shared Y-axes
+3. **Analyze Data**: View your data in the interactive chart with zoom and pan capabilities
+4. **Review Statistics**: Check the statistics panel for detailed numerical analysis of your selected variables
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Data Format
 
-## What technologies are used for this project?
+Your data files should contain:
+- A datetime column (various formats supported)
+- One or more numeric data columns for analysis
+- Headers in the first row
 
-This project is built with:
+## Deployment
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+This project can be deployed to any static hosting service. The built files are generated in the `dist` directory after running:
 
-## How can I deploy this project?
+```bash
+npm run build
+```
 
-Simply open [Lovable](https://lovable.dev/projects/eb275216-2e90-4554-8c01-9fb958b3e8af) and click on Share -> Publish.
+## Contributing
 
-## Can I connect a custom domain to my Lovable project?
+This project was built with [Lovable](https://lovable.dev), an AI-powered web development platform. You can continue development either:
+- Using the Lovable editor at: https://lovable.dev/projects/eb275216-2e90-4554-8c01-9fb958b3e8af
+- Locally using your preferred IDE (changes sync automatically with Lovable)
 
-Yes, you can!
+## License
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+This project is open source and available under the MIT License.
