@@ -816,10 +816,6 @@ export const TimeSeriesChart = ({
                 Scroll to zoom
               </Badge>
               <Badge variant="outline" className="text-xs">
-                <Calculator className="h-3 w-3 mr-1" />
-                Drag for selection
-              </Badge>
-              <Badge variant="outline" className="text-xs">
                 <Move className="h-3 w-3 mr-1" />
                 Ctrl + drag to pan
               </Badge>
