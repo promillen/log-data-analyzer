@@ -400,7 +400,47 @@ export const TimeSeriesChart = ({
               font: { size: 12 }
             }
           },
-          tooltip: { enabled: false },
+          tooltip: { 
+            enabled: false,
+            external: (context: any) => {
+              const { chart, tooltip } = context;
+              
+              if (tooltip.opacity === 0) {
+                setTooltip(prev => ({ ...prev, visible: false }));
+                return;
+              }
+
+              if (tooltip.dataPoints && tooltip.dataPoints.length > 0) {
+                const canvas = chart.canvas;
+                const rect = canvas.getBoundingClientRect();
+                
+                const values = tooltip.dataPoints.map((point: any) => {
+                  let cleanLabel = point.dataset.label;
+                  return {
+                    label: cleanLabel,
+                    value: point.parsed.y,
+                    color: point.dataset.borderColor
+                  };
+                });
+
+                const timeStr = new Date(tooltip.dataPoints[0].parsed.x).toLocaleString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit', 
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                });
+
+                setTooltip({
+                  x: tooltip.caretX + 10,
+                  y: tooltip.caretY - 10,
+                  visible: true,
+                  time: timeStr,
+                  values
+                });
+              }
+            }
+          },
           annotation: {
             annotations
           },
@@ -445,6 +485,10 @@ export const TimeSeriesChart = ({
           setSelectionStart(dataX);
           setSelectionEnd(dataX);
           setIsSelecting(true);
+          // Clear any existing selection annotation
+          if (chartRef.current?.options?.plugins?.annotation?.annotations) {
+            chartRef.current.options.plugins.annotation.annotations = {};
+          }
         }
       };
 
@@ -474,8 +518,17 @@ export const TimeSeriesChart = ({
           const dataX = chartRef.current?.scales.x.getValueForPixel(canvasPosition.x);
           if (dataX) {
             setSelectionEnd(dataX);
-            // Trigger chart update to show selection box
-            if (chartRef.current) {
+            
+            // Update selection annotation in real-time
+            if (chartRef.current?.options?.plugins?.annotation?.annotations) {
+              chartRef.current.options.plugins.annotation.annotations.selectionBox = {
+                type: 'box',
+                xMin: Math.min(selectionStart, dataX),
+                xMax: Math.max(selectionStart, dataX),
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderColor: 'rgba(59, 130, 246, 0.8)',
+                borderWidth: 2,
+              };
               chartRef.current.update('none');
             }
           }
@@ -629,21 +682,6 @@ export const TimeSeriesChart = ({
                 console.log('Dialog open changed to:', open);
                 setIsFullscreen(open);
               }}>
-                <DialogTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => {
-                      console.log('=== FULLSCREEN BUTTON CLICKED ===');
-                      console.log('Current isFullscreen state:', isFullscreen);
-                      console.log('Setting isFullscreen to true...');
-                      setIsFullscreen(true);
-                    }}
-                  >
-                    <Maximize2 className="h-4 w-4 mr-1" />
-                    Fullscreen
-                  </Button>
-                </DialogTrigger>
                 <DialogContent className="max-w-[95vw] h-[95vh] p-6">
                   <DialogTitle className="sr-only">Chart Fullscreen View</DialogTitle>
                   <DialogDescription className="sr-only">
@@ -651,12 +689,26 @@ export const TimeSeriesChart = ({
                   </DialogDescription>
                   
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4">
                       <h2 className="text-lg font-semibold">Chart Fullscreen View</h2>
-                      <Badge variant="outline" className="text-xs">
-                        <Calculator className="h-3 w-3 mr-1" />
-                        Drag to select range
-                      </Badge>
+                      <div className="flex gap-2">
+                        <Badge variant="outline" className="text-xs">
+                          <ZoomIn className="h-3 w-3 mr-1" />
+                          Scroll to zoom
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          <Calculator className="h-3 w-3 mr-1" />
+                          Drag for selection
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          <Move className="h-3 w-3 mr-1" />
+                          Ctrl + drag to pan
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          <Maximize2 className="h-3 w-3 mr-1" />
+                          Double click for fullscreen
+                        </Badge>
+                      </div>
                     </div>
                     <Button
                       variant="outline"
@@ -718,12 +770,16 @@ export const TimeSeriesChart = ({
                 Scroll to zoom
               </Badge>
               <Badge variant="outline" className="text-xs">
-                <Move className="h-3 w-3 mr-1" />
-                Ctrl+drag to pan
+                <Calculator className="h-3 w-3 mr-1" />
+                Drag for selection
               </Badge>
               <Badge variant="outline" className="text-xs">
-                <Calculator className="h-3 w-3 mr-1" />
-                Double-click for fullscreen
+                <Move className="h-3 w-3 mr-1" />
+                Ctrl + drag to pan
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                <Maximize2 className="h-3 w-3 mr-1" />
+                Double click for fullscreen
               </Badge>
             </div>
           </div>
