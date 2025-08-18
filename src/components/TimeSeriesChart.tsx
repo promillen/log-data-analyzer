@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { LineChart, ZoomIn, Move, Maximize2, Calculator, X } from 'lucide-react';
 
@@ -530,48 +530,62 @@ export const TimeSeriesChart = ({
 
   useEffect(() => {
     if (isFullscreen && fullscreenCanvasRef.current) {
-      console.log('Setting up fullscreen chart...');
+      console.log('=== FULLSCREEN CHART SETUP ===');
+      console.log('isFullscreen:', isFullscreen);
+      console.log('fullscreenCanvasRef.current:', fullscreenCanvasRef.current);
       
-      // Longer delay to ensure the dialog is fully rendered and sized
-      const timer = setTimeout(async () => {
-        const canvas = fullscreenCanvasRef.current;
-        if (canvas) {
-          console.log('Canvas found, setting up chart...');
-          
-          // Force canvas to match container size
-          const container = canvas.parentElement;
-          if (container) {
-            console.log('Container size:', container.clientWidth, 'x', container.clientHeight);
+      // Use ResizeObserver to detect when the dialog is fully rendered
+      const canvas = fullscreenCanvasRef.current;
+      const container = canvas.parentElement;
+      
+      if (container) {
+        console.log('Container found, setting up ResizeObserver...');
+        
+        const resizeObserver = new ResizeObserver((entries) => {
+          for (let entry of entries) {
+            const { width, height } = entry.contentRect;
+            console.log('Container resized to:', width, 'x', height);
             
-            // Get the actual rendered size
-            const rect = container.getBoundingClientRect();
-            console.log('Container rect:', rect);
-            
-            canvas.width = rect.width || container.clientWidth;
-            canvas.height = rect.height || container.clientHeight;
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            
-            console.log('Canvas dimensions set to:', canvas.width, 'x', canvas.height);
+            if (width > 0 && height > 0) {
+              console.log('Valid size detected, creating chart...');
+              
+              // Set canvas size
+              canvas.width = width;
+              canvas.height = height;
+              canvas.style.width = '100%';
+              canvas.style.height = '100%';
+              
+              console.log('Canvas dimensions set to:', canvas.width, 'x', canvas.height);
+              
+              // Create chart with a small delay
+              setTimeout(async () => {
+                try {
+                  console.log('Calling createChart...');
+                  await createChart(canvas, fullscreenChartRef, true);
+                  console.log('✅ Fullscreen chart created successfully!');
+                } catch (error) {
+                  console.error('❌ Error creating fullscreen chart:', error);
+                }
+              }, 100);
+            }
           }
-          
-          // Add longer delay to ensure proper sizing
-          setTimeout(async () => {
-            console.log('Creating fullscreen chart...');
-            await createChart(canvas, fullscreenChartRef, true);
-            console.log('Fullscreen chart created successfully');
-          }, 100);
-        }
-      }, 300);
-      
-      return () => {
-        clearTimeout(timer);
-        if (fullscreenChartRef.current) {
-          fullscreenChartRef.current.destroy();
-          fullscreenChartRef.current = null;
-        }
-      };
+        });
+        
+        resizeObserver.observe(container);
+        
+        return () => {
+          console.log('Cleaning up fullscreen chart...');
+          resizeObserver.disconnect();
+          if (fullscreenChartRef.current) {
+            fullscreenChartRef.current.destroy();
+            fullscreenChartRef.current = null;
+          }
+        };
+      } else {
+        console.warn('No container found for fullscreen canvas');
+      }
     }
+    
     return () => {
       if (fullscreenChartRef.current) {
         fullscreenChartRef.current.destroy();
@@ -612,6 +626,11 @@ export const TimeSeriesChart = ({
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-[95vw] h-[95vh] p-6">
+                  <DialogTitle className="sr-only">Chart Fullscreen View</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Interactive fullscreen chart with drag selection capabilities
+                  </DialogDescription>
+                  
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-4">
                       <h2 className="text-lg font-semibold">Chart Fullscreen View</h2>
@@ -635,10 +654,11 @@ export const TimeSeriesChart = ({
                     </Button>
                   </div>
                   
-                  <div className="relative h-[calc(95vh-200px)] w-full">
+                  <div className="relative w-full" style={{ height: 'calc(95vh - 120px)' }}>
                     <canvas 
                       ref={fullscreenCanvasRef} 
-                      className="w-full h-full" 
+                      className="w-full h-full border border-gray-200 rounded" 
+                      style={{ minHeight: '400px' }}
                       onMouseLeave={() => setTooltip(prev => ({ ...prev, visible: false }))}
                     />
                     
@@ -732,6 +752,11 @@ export const TimeSeriesChart = ({
       {/* Selection Statistics Modal */}
       <Dialog open={showStats} onOpenChange={setShowStats}>
         <DialogContent className="max-w-2xl">
+          <DialogTitle>Selection Statistics</DialogTitle>
+          <DialogDescription>
+            Statistical analysis of the selected time range for each variable
+          </DialogDescription>
+          
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Selection Statistics</h2>
             <Button
