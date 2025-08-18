@@ -529,6 +529,10 @@ export const TimeSeriesChart = ({
   }, [datasets, variableConfigs, selectedVariables]);
 
   useEffect(() => {
+    console.log('=== FULLSCREEN STATE CHANGED ===');
+    console.log('isFullscreen:', isFullscreen);
+    console.log('fullscreenCanvasRef.current:', fullscreenCanvasRef.current);
+    
     if (isFullscreen && fullscreenCanvasRef.current) {
       console.log('=== FULLSCREEN CHART SETUP ===');
       console.log('isFullscreen:', isFullscreen);
@@ -618,9 +622,22 @@ export const TimeSeriesChart = ({
               Chart View
             </CardTitle>
             <div className="flex gap-2">
-              <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+              <Dialog open={isFullscreen} onOpenChange={(open) => {
+                console.log('=== DIALOG STATE CHANGE ===');
+                console.log('Dialog open changed to:', open);
+                setIsFullscreen(open);
+              }}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" onDoubleClick={() => setIsFullscreen(true)}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      console.log('=== FULLSCREEN BUTTON CLICKED ===');
+                      console.log('Current isFullscreen state:', isFullscreen);
+                      console.log('Setting isFullscreen to true...');
+                      setIsFullscreen(true);
+                    }}
+                  >
                     <Maximize2 className="h-4 w-4 mr-1" />
                     Fullscreen
                   </Button>
