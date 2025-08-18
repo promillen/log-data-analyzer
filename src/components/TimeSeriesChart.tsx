@@ -533,70 +533,72 @@ export const TimeSeriesChart = ({
     console.log('isFullscreen:', isFullscreen);
     console.log('fullscreenCanvasRef.current:', fullscreenCanvasRef.current);
     
-    if (isFullscreen && fullscreenCanvasRef.current) {
-      console.log('=== FULLSCREEN CHART SETUP ===');
-      console.log('isFullscreen:', isFullscreen);
-      console.log('fullscreenCanvasRef.current:', fullscreenCanvasRef.current);
-      
-      // Use ResizeObserver to detect when the dialog is fully rendered
-      const canvas = fullscreenCanvasRef.current;
-      const container = canvas.parentElement;
-      
-      if (container) {
-        console.log('Container found, setting up ResizeObserver...');
+    if (isFullscreen) {
+      // Add a small delay to ensure Dialog content is rendered
+      const timer = setTimeout(() => {
+        console.log('=== CHECKING FULLSCREEN CANVAS AFTER DELAY ===');
+        console.log('fullscreenCanvasRef.current:', fullscreenCanvasRef.current);
         
-        const resizeObserver = new ResizeObserver((entries) => {
-          for (let entry of entries) {
-            const { width, height } = entry.contentRect;
-            console.log('Container resized to:', width, 'x', height);
+        if (fullscreenCanvasRef.current) {
+          console.log('=== FULLSCREEN CHART SETUP ===');
+          console.log('isFullscreen:', isFullscreen);
+          console.log('fullscreenCanvasRef.current:', fullscreenCanvasRef.current);
+          
+          // Use ResizeObserver to detect when the dialog is fully rendered
+          const canvas = fullscreenCanvasRef.current;
+          const container = canvas.parentElement;
+          
+          if (container) {
+            console.log('Container found, setting up ResizeObserver...');
             
-            if (width > 0 && height > 0) {
-              console.log('Valid size detected, creating chart...');
-              
-              // Set canvas size
-              canvas.width = width;
-              canvas.height = height;
-              canvas.style.width = '100%';
-              canvas.style.height = '100%';
-              
-              console.log('Canvas dimensions set to:', canvas.width, 'x', canvas.height);
-              
-              // Create chart with a small delay
-              setTimeout(async () => {
-                try {
-                  console.log('Calling createChart...');
-                  await createChart(canvas, fullscreenChartRef, true);
-                  console.log('✅ Fullscreen chart created successfully!');
-                } catch (error) {
-                  console.error('❌ Error creating fullscreen chart:', error);
+            const resizeObserver = new ResizeObserver((entries) => {
+              for (let entry of entries) {
+                const { width, height } = entry.contentRect;
+                console.log('Container resized to:', width, 'x', height);
+                
+                if (width > 0 && height > 0) {
+                  console.log('Valid size detected, creating chart...');
+                  
+                  // Set canvas size
+                  canvas.width = width;
+                  canvas.height = height;
+                  canvas.style.width = '100%';
+                  canvas.style.height = '100%';
+                  
+                  console.log('Canvas dimensions set to:', canvas.width, 'x', canvas.height);
+                  
+                  // Create chart with a small delay
+                  setTimeout(async () => {
+                    try {
+                      console.log('Calling createChart...');
+                      await createChart(canvas, fullscreenChartRef, true);
+                      console.log('✅ Fullscreen chart created successfully!');
+                    } catch (error) {
+                      console.error('❌ Error creating fullscreen chart:', error);
+                    }
+                  }, 100);
                 }
-              }, 100);
-            }
+              }
+            });
+            
+            resizeObserver.observe(container);
+          } else {
+            console.warn('No container found for fullscreen canvas');
           }
-        });
-        
-        resizeObserver.observe(container);
-        
-        return () => {
-          console.log('Cleaning up fullscreen chart...');
-          resizeObserver.disconnect();
-          if (fullscreenChartRef.current) {
-            fullscreenChartRef.current.destroy();
-            fullscreenChartRef.current = null;
-          }
-        };
-      } else {
-        console.warn('No container found for fullscreen canvas');
-      }
+        } else {
+          console.warn('Canvas not available after timeout');
+        }
+      }, 100); // Delay to ensure DOM is ready
+      
+      return () => {
+        if (fullscreenChartRef.current) {
+          fullscreenChartRef.current.destroy();
+          fullscreenChartRef.current = null;
+        }
+        clearTimeout(timer);
+      };
     }
-    
-    return () => {
-      if (fullscreenChartRef.current) {
-        fullscreenChartRef.current.destroy();
-        fullscreenChartRef.current = null;
-      }
-    };
-  }, [isFullscreen, datasets, variableConfigs, selectedVariables, selectionStart, selectionEnd]);
+  }, [isFullscreen, datasets, variableConfigs, selectedVariables]);
 
   if (selectedVariables.length === 0) {
     return (
