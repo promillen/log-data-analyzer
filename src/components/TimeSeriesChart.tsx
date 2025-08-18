@@ -530,21 +530,39 @@ export const TimeSeriesChart = ({
 
   useEffect(() => {
     if (isFullscreen && fullscreenCanvasRef.current) {
+      console.log('Setting up fullscreen chart...');
+      
       // Longer delay to ensure the dialog is fully rendered and sized
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         const canvas = fullscreenCanvasRef.current;
         if (canvas) {
+          console.log('Canvas found, setting up chart...');
+          
           // Force canvas to match container size
           const container = canvas.parentElement;
           if (container) {
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+            console.log('Container size:', container.clientWidth, 'x', container.clientHeight);
+            
+            // Get the actual rendered size
+            const rect = container.getBoundingClientRect();
+            console.log('Container rect:', rect);
+            
+            canvas.width = rect.width || container.clientWidth;
+            canvas.height = rect.height || container.clientHeight;
             canvas.style.width = '100%';
             canvas.style.height = '100%';
+            
+            console.log('Canvas dimensions set to:', canvas.width, 'x', canvas.height);
           }
-          createChart(canvas, fullscreenChartRef, true);
+          
+          // Add longer delay to ensure proper sizing
+          setTimeout(async () => {
+            console.log('Creating fullscreen chart...');
+            await createChart(canvas, fullscreenChartRef, true);
+            console.log('Fullscreen chart created successfully');
+          }, 100);
         }
-      }, 250);
+      }, 300);
       
       return () => {
         clearTimeout(timer);
