@@ -367,9 +367,9 @@ export const TimeSeriesChart = ({
               displayFormats: {
                 minute: 'HH:mm',
                 hour: 'HH:mm',
-                day: 'DD/MM'
+                day: 'dd/MM'
               },
-              tooltipFormat: 'DD/MM/YYYY HH:mm'
+              tooltipFormat: 'dd/MM/yyyy HH:mm'
             },
             title: {
               display: true,
@@ -470,8 +470,11 @@ export const TimeSeriesChart = ({
 
     // Add custom event listeners for fullscreen chart selection
     if (isFullscreenChart) {
+      console.log('Setting up drag selection listeners for fullscreen chart');
+      
       const handleMouseDown = (e: MouseEvent) => {
-        if (e.ctrlKey) return; // Let pan handle it
+        console.log('Mouse down event:', { ctrlKey: e.ctrlKey, button: e.button });
+        if (e.ctrlKey || e.button !== 0) return; // Let pan handle it or ignore non-left clicks
         
         const rect = canvas.getBoundingClientRect();
         const canvasPosition = {
@@ -480,7 +483,10 @@ export const TimeSeriesChart = ({
         };
         const dataX = chartRef.current?.scales.x.getValueForPixel(canvasPosition.x);
         
+        console.log('Mouse down - dataX:', dataX);
         if (dataX) {
+          e.preventDefault();
+          console.log('Starting drag selection');
           setIsDragging(true);
           setSelectionStart(dataX);
           setSelectionEnd(dataX);
@@ -492,16 +498,21 @@ export const TimeSeriesChart = ({
         }
       };
 
-      const handleMouseUp = () => {
+      const handleMouseUp = (e: MouseEvent) => {
+        console.log('Mouse up event - isDragging:', isDragging, 'selectionStart:', selectionStart, 'selectionEnd:', selectionEnd);
         if (isDragging && selectionStart !== null && selectionEnd !== null) {
           const start = Math.min(selectionStart, selectionEnd);
           const end = Math.max(selectionStart, selectionEnd);
           
+          console.log('Selection range:', { start, end, diff: end - start });
           // Only show stats if there's a meaningful selection (more than 1 minute difference)
           if (end - start > 60000) {
+            console.log('Calculating selection stats');
             const stats = calculateSelectionStats(start, end);
             setSelectionStats(stats);
             setShowStats(true);
+          } else {
+            console.log('Selection too small, not showing stats');
           }
         }
         setIsDragging(false);
@@ -535,14 +546,18 @@ export const TimeSeriesChart = ({
         }
       };
 
-      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mousedown', handleMouseDown, { passive: false });
       canvas.addEventListener('mouseup', handleMouseUp);
       canvas.addEventListener('mousemove', handleMouseMove);
+      
+      // Also listen on document for mouseup to catch when mouse leaves canvas
+      document.addEventListener('mouseup', handleMouseUp);
 
       return () => {
         canvas.removeEventListener('mousedown', handleMouseDown);
         canvas.removeEventListener('mouseup', handleMouseUp);
         canvas.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
       };
     }
   };
