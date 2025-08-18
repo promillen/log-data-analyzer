@@ -474,6 +474,10 @@ export const TimeSeriesChart = ({
           const dataX = chartRef.current?.scales.x.getValueForPixel(canvasPosition.x);
           if (dataX) {
             setSelectionEnd(dataX);
+            // Trigger chart update to show selection box
+            if (chartRef.current) {
+              chartRef.current.update('none');
+            }
           }
         }
       };
@@ -526,10 +530,21 @@ export const TimeSeriesChart = ({
 
   useEffect(() => {
     if (isFullscreen && fullscreenCanvasRef.current) {
-      // Small delay to ensure the dialog is fully rendered
+      // Longer delay to ensure the dialog is fully rendered and sized
       const timer = setTimeout(() => {
-        createChart(fullscreenCanvasRef.current, fullscreenChartRef, true);
-      }, 100);
+        const canvas = fullscreenCanvasRef.current;
+        if (canvas) {
+          // Force canvas to match container size
+          const container = canvas.parentElement;
+          if (container) {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+          }
+          createChart(canvas, fullscreenChartRef, true);
+        }
+      }, 250);
       
       return () => {
         clearTimeout(timer);
