@@ -80,6 +80,7 @@ export const TimeSeriesChart = ({
   const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
   const [selectionStats, setSelectionStats] = useState<SelectionStats[]>([]);
   const [showStats, setShowStats] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Calculate statistics for selected time range
   const calculateSelectionStats = (startTime: number, endTime: number) => {
@@ -206,7 +207,7 @@ export const TimeSeriesChart = ({
   };
 
   const createChart = async (canvas: HTMLCanvasElement | null, chartRef: React.MutableRefObject<any>, isFullscreenChart: boolean = false) => {
-    if (!canvas) return;
+    if (!canvas || selectedVariables.length === 0) return;
     
     const [
       { Chart, registerables },
@@ -223,9 +224,8 @@ export const TimeSeriesChart = ({
 
     if (chartRef.current) {
       chartRef.current.destroy();
+      chartRef.current = null;
     }
-
-    if (selectedVariables.length === 0) return;
 
     const chartDatasets = selectedVariables.map(variableId => {
       let matchingDatasetKey: string | null = null;
@@ -405,10 +405,15 @@ export const TimeSeriesChart = ({
             annotations
           },
           zoom: {
-            pan: { enabled: true, mode: 'x' },
+            pan: { 
+              enabled: true, 
+              mode: 'x',
+              modifierKey: 'ctrl'
+            },
             zoom: {
               wheel: { enabled: true, speed: 0.1 },
               pinch: { enabled: true },
+              drag: { enabled: false }, // Disable drag zoom
               mode: 'x',
               onZoomStart: () => {
                 setTooltip(prev => ({ ...prev, visible: false }));
@@ -419,142 +424,100 @@ export const TimeSeriesChart = ({
               x: { minRange: 30 * 1000 }
             }
           }
-        },
-        onClick: isFullscreenChart ? (event, elements, chart) => {
-          if (!event.native) return;
-          
-          const canvasPosition = {
-            x: (event.native as MouseEvent).offsetX,
-            y: (event.native as MouseEvent).offsetY
-          };
-          const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
-          
-          if (!dataX) return;
-          
-          if (!isSelecting) {
-            setIsSelecting(true);
-            setSelectionStart(dataX);
-            setSelectionEnd(dataX);
-          } else {
-            setIsSelecting(false);
-            setSelectionEnd(dataX);
-            
-            if (selectionStart !== null) {
-              const start = Math.min(selectionStart, dataX);
-              const end = Math.max(selectionStart, dataX);
-              const stats = calculateSelectionStats(start, end);
-              setSelectionStats(stats);
-              setShowStats(true);
-            }
-          }
-        } : undefined,
-        onHover: (event, elements, chart) => {
-          if (!event.native || !canvas) return;
-          
-          if (isSelecting && selectionStart !== null) {
-            const canvasPosition = {
-              x: (event.native as MouseEvent).offsetX,
-              y: (event.native as MouseEvent).offsetY
-            };
-            const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
-            if (dataX) {
-              setSelectionEnd(dataX);
-            }
-            return;
-          }
-
-          const nativeEvent = event.native as MouseEvent;
-          const rect = canvas.getBoundingClientRect();
-          const x = nativeEvent.clientX - rect.left;
-          const y = nativeEvent.clientY - rect.top;
-
-          const canvasPosition = {
-            x: nativeEvent.offsetX,
-            y: nativeEvent.offsetY
-          };
-          const dataX = chart.scales.x.getValueForPixel(canvasPosition.x);
-
-          if (!dataX) {
-            setTooltip(prev => ({ ...prev, visible: false }));
-            return;
-          }
-
-          const values: Array<{ label: string; value: number; color: string }> = [];
-          
-          chartDatasets.forEach((dataset: any) => {
-            if (!dataset?.data) return;
-            
-            let closest = dataset.data[0];
-            let minDiff = Math.abs(closest.x - dataX);
-            
-            dataset.data.forEach((point: any) => {
-              const diff = Math.abs(point.x - dataX);
-              if (diff < minDiff) {
-                minDiff = diff;
-                closest = point;
-              }
-            });
-
-            if (closest && minDiff < 60000) {
-              values.push({
-                label: dataset.label,
-                value: closest.y,
-                color: dataset.borderColor
-              });
-            }
-          });
-
-          if (values.length > 0) {
-            const time = new Date(dataX).toLocaleString('en-GB', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            });
-
-            let tooltipX = x + 15;
-            let tooltipY = y - 15;
-            
-            if (tooltipX > rect.width - 200) {
-              tooltipX = x - 215;
-            }
-            
-            if (tooltipY < 10) {
-              tooltipY = y + 15;
-            }
-            
-            if (tooltipY > rect.height - 100) {
-              tooltipY = y - 85;
-            }
-
-            setTooltip({
-              x: tooltipX,
-              y: tooltipY,
-              visible: true,
-              time,
-              values
-            });
-          } else {
-            setTooltip(prev => ({ ...prev, visible: false }));
-          }
-
-          canvas.style.cursor = isFullscreenChart && !isSelecting ? 'crosshair' : values.length > 0 ? 'crosshair' : 'default';
         }
       }
     });
+
+    // Add custom event listeners for fullscreen chart selection
+    if (isFullscreenChart) {
+      const handleMouseDown = (e: MouseEvent) => {
+        if (e.ctrlKey) return; // Let pan handle it
+        
+        const rect = canvas.getBoundingClientRect();
+        const canvasPosition = {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        };
+        const dataX = chartRef.current?.scales.x.getValueForPixel(canvasPosition.x);
+        
+        if (dataX) {
+          setIsDragging(true);
+          setSelectionStart(dataX);
+          setSelectionEnd(dataX);
+          setIsSelecting(true);
+        }
+      };
+
+      const handleMouseUp = () => {
+        if (isDragging && selectionStart !== null && selectionEnd !== null) {
+          const start = Math.min(selectionStart, selectionEnd);
+          const end = Math.max(selectionStart, selectionEnd);
+          
+          // Only show stats if there's a meaningful selection (more than 1 minute difference)
+          if (end - start > 60000) {
+            const stats = calculateSelectionStats(start, end);
+            setSelectionStats(stats);
+            setShowStats(true);
+          }
+        }
+        setIsDragging(false);
+        setIsSelecting(false);
+      };
+
+      const handleMouseMove = (e: MouseEvent) => {
+        if (isDragging && selectionStart !== null) {
+          const rect = canvas.getBoundingClientRect();
+          const canvasPosition = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+          };
+          const dataX = chartRef.current?.scales.x.getValueForPixel(canvasPosition.x);
+          if (dataX) {
+            setSelectionEnd(dataX);
+          }
+        }
+      };
+
+      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('mousemove', handleMouseMove);
+
+      return () => {
+        canvas.removeEventListener('mousedown', handleMouseDown);
+        canvas.removeEventListener('mouseup', handleMouseUp);
+        canvas.removeEventListener('mousemove', handleMouseMove);
+      };
+    }
+  };
+
+  const addDoubleClickHandler = (canvas: HTMLCanvasElement) => {
+    const handleDoubleClick = () => {
+      setIsFullscreen(true);
+    };
+    
+    canvas.addEventListener('dblclick', handleDoubleClick);
+    return () => canvas.removeEventListener('dblclick', handleDoubleClick);
   };
 
   useEffect(() => {
     const loadChartJS = async () => {
       if (typeof window === 'undefined') return;
 
-      await createChart(canvasRef.current, chartInstanceRef, false);
+      const cleanup = await createChart(canvasRef.current, chartInstanceRef, false);
+      
+      // Add double-click handler for regular chart
+      const doubleClickCleanup = canvasRef.current ? addDoubleClickHandler(canvasRef.current) : null;
+      
+      return () => {
+        cleanup?.();
+        doubleClickCleanup?.();
+      };
     };
 
-    loadChartJS();
+    const cleanupPromise = loadChartJS();
 
     return () => {
+      cleanupPromise.then(cleanup => cleanup?.());
       if (chartInstanceRef.current) {
         chartInstanceRef.current.destroy();
       }
@@ -562,12 +525,24 @@ export const TimeSeriesChart = ({
   }, [datasets, variableConfigs, selectedVariables]);
 
   useEffect(() => {
-    if (isFullscreen) {
-      createChart(fullscreenCanvasRef.current, fullscreenChartRef, true);
+    if (isFullscreen && fullscreenCanvasRef.current) {
+      // Small delay to ensure the dialog is fully rendered
+      const timer = setTimeout(() => {
+        createChart(fullscreenCanvasRef.current, fullscreenChartRef, true);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timer);
+        if (fullscreenChartRef.current) {
+          fullscreenChartRef.current.destroy();
+          fullscreenChartRef.current = null;
+        }
+      };
     }
     return () => {
       if (fullscreenChartRef.current) {
         fullscreenChartRef.current.destroy();
+        fullscreenChartRef.current = null;
       }
     };
   }, [isFullscreen, datasets, variableConfigs, selectedVariables, selectionStart, selectionEnd]);
@@ -598,7 +573,7 @@ export const TimeSeriesChart = ({
             <div className="flex gap-2">
               <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onDoubleClick={() => setIsFullscreen(true)}>
                     <Maximize2 className="h-4 w-4 mr-1" />
                     Fullscreen
                   </Button>
@@ -607,23 +582,16 @@ export const TimeSeriesChart = ({
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-4">
                       <h2 className="text-lg font-semibold">Chart Fullscreen View</h2>
-                      {isSelecting && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Calculator className="h-3 w-3 mr-1" />
-                          Click to end selection
-                        </Badge>
-                      )}
-                      {!isSelecting && (
-                        <Badge variant="outline" className="text-xs">
-                          <Calculator className="h-3 w-3 mr-1" />
-                          Click twice to select range
-                        </Badge>
-                      )}
+                      <Badge variant="outline" className="text-xs">
+                        <Calculator className="h-3 w-3 mr-1" />
+                        Drag to select range
+                      </Badge>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
+                        setIsDragging(false);
                         setIsSelecting(false);
                         setSelectionStart(null);
                         setSelectionEnd(null);
@@ -679,7 +647,11 @@ export const TimeSeriesChart = ({
               </Badge>
               <Badge variant="outline" className="text-xs">
                 <Move className="h-3 w-3 mr-1" />
-                Drag to pan
+                Ctrl+drag to pan
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                <Calculator className="h-3 w-3 mr-1" />
+                Double-click for fullscreen
               </Badge>
             </div>
           </div>
