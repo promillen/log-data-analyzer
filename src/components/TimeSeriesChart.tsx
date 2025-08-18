@@ -80,7 +80,11 @@ export const TimeSeriesChart = ({
   const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
   const [selectionStats, setSelectionStats] = useState<SelectionStats[]>([]);
   const [showStats, setShowStats] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  
+  // Use refs for immediate state tracking in event handlers
+  const isDraggingRef = useRef(false);
+  const selectionStartRef = useRef<number | null>(null);
+  const selectionEndRef = useRef<number | null>(null);
 
   // Calculate statistics for selected time range
   const calculateSelectionStats = (startTime: number, endTime: number) => {
@@ -431,9 +435,13 @@ export const TimeSeriesChart = ({
                   minute: '2-digit'
                 });
 
+                // Position tooltip next to mouse cursor instead of data point
+                const mouseX = chart._lastEvent?.x || tooltip.caretX;
+                const mouseY = chart._lastEvent?.y || tooltip.caretY;
+
                 setTooltip({
-                  x: tooltip.caretX + 10,
-                  y: tooltip.caretY - 10,
+                  x: mouseX + 15, // Offset from mouse cursor
+                  y: mouseY - 10,
                   visible: true,
                   time: timeStr,
                   values
@@ -487,10 +495,17 @@ export const TimeSeriesChart = ({
         if (dataX) {
           e.preventDefault();
           console.log('Starting drag selection');
-          setIsDragging(true);
+          
+          // Use refs for immediate state
+          isDraggingRef.current = true;
+          selectionStartRef.current = dataX;
+          selectionEndRef.current = dataX;
+          
+          // Also update state for UI
+          setIsSelecting(true);
           setSelectionStart(dataX);
           setSelectionEnd(dataX);
-          setIsSelecting(true);
+          
           // Clear any existing selection annotation
           if (chartRef.current?.options?.plugins?.annotation?.annotations) {
             chartRef.current.options.plugins.annotation.annotations = {};
@@ -499,10 +514,11 @@ export const TimeSeriesChart = ({
       };
 
       const handleMouseUp = (e: MouseEvent) => {
-        console.log('Mouse up event - isDragging:', isDragging, 'selectionStart:', selectionStart, 'selectionEnd:', selectionEnd);
-        if (isDragging && selectionStart !== null && selectionEnd !== null) {
-          const start = Math.min(selectionStart, selectionEnd);
-          const end = Math.max(selectionStart, selectionEnd);
+        console.log('Mouse up event - isDragging:', isDraggingRef.current, 'selectionStart:', selectionStartRef.current, 'selectionEnd:', selectionEndRef.current);
+        
+        if (isDraggingRef.current && selectionStartRef.current !== null && selectionEndRef.current !== null) {
+          const start = Math.min(selectionStartRef.current, selectionEndRef.current);
+          const end = Math.max(selectionStartRef.current, selectionEndRef.current);
           
           console.log('Selection range:', { start, end, diff: end - start });
           // Only show stats if there's a meaningful selection (more than 1 minute difference)
@@ -515,12 +531,18 @@ export const TimeSeriesChart = ({
             console.log('Selection too small, not showing stats');
           }
         }
-        setIsDragging(false);
+        
+        // Reset refs and state
+        isDraggingRef.current = false;
+        selectionStartRef.current = null;
+        selectionEndRef.current = null;
         setIsSelecting(false);
+        setSelectionStart(null);
+        setSelectionEnd(null);
       };
 
       const handleMouseMove = (e: MouseEvent) => {
-        if (isDragging && selectionStart !== null) {
+        if (isDraggingRef.current && selectionStartRef.current !== null) {
           const rect = canvas.getBoundingClientRect();
           const canvasPosition = {
             x: e.clientX - rect.left,
@@ -528,14 +550,15 @@ export const TimeSeriesChart = ({
           };
           const dataX = chartRef.current?.scales.x.getValueForPixel(canvasPosition.x);
           if (dataX) {
+            selectionEndRef.current = dataX;
             setSelectionEnd(dataX);
             
             // Update selection annotation in real-time
             if (chartRef.current?.options?.plugins?.annotation?.annotations) {
               chartRef.current.options.plugins.annotation.annotations.selectionBox = {
                 type: 'box',
-                xMin: Math.min(selectionStart, dataX),
-                xMax: Math.max(selectionStart, dataX),
+                xMin: Math.min(selectionStartRef.current, dataX),
+                xMax: Math.max(selectionStartRef.current, dataX),
                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                 borderColor: 'rgba(59, 130, 246, 0.8)',
                 borderWidth: 2,
@@ -729,11 +752,19 @@ export const TimeSeriesChart = ({
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setIsDragging(false);
+                        isDraggingRef.current = false;
+                        selectionStartRef.current = null;
+                        selectionEndRef.current = null;
                         setIsSelecting(false);
                         setSelectionStart(null);
                         setSelectionEnd(null);
                         setShowStats(false);
+                        
+                        // Clear annotation from chart
+                        if (fullscreenChartRef.current?.options?.plugins?.annotation?.annotations) {
+                          fullscreenChartRef.current.options.plugins.annotation.annotations = {};
+                          fullscreenChartRef.current.update('none');
+                        }
                       }}
                     >
                       Clear Selection
