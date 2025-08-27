@@ -177,11 +177,12 @@ const Index = () => {
 
     let validRows = 0;
     let invalidRows = 0;
+    let lastReportedProgress = 10;
     
     onProgress?.(10); // 10% for setup complete
 
     // Process data in chunks to allow UI updates
-    const CHUNK_SIZE = 1000;
+    const CHUNK_SIZE = 2000; // Larger chunks for smoother progress
     let processedRows = 0;
 
     for (let startRow = 1; startRow < lines.length; startRow += CHUNK_SIZE) {
@@ -253,12 +254,17 @@ const Index = () => {
       }
 
       processedRows = endRow - 1;
-      const progress = 10 + (processedRows / totalRows) * 80; // 10% to 90%
-      onProgress?.(progress);
+      // Ensure progress only increases and update less frequently for smoothness
+      const newProgress = Math.min(10 + (processedRows / totalRows) * 80, 90); // 10% to 90%
+      
+      if (newProgress > lastReportedProgress + 2) { // Only update if progress increased by at least 2%
+        onProgress?.(newProgress);
+        lastReportedProgress = newProgress;
+      }
 
-      // Allow UI to update between chunks
+      // Allow UI to update between chunks - slightly longer pause for smoother animation
       if (startRow + CHUNK_SIZE < lines.length) {
-        await new Promise(resolve => setTimeout(resolve, 1));
+        await new Promise(resolve => setTimeout(resolve, 5));
       }
     }
 
@@ -608,7 +614,7 @@ const Index = () => {
               {isLoading && (
                 <div className="space-y-3 max-w-md mx-auto">
                   <div className="text-sm font-medium text-blue-700">{loadingText}</div>
-                  <Progress value={loadingProgress} className="h-2" />
+                  <Progress value={loadingProgress} className="h-3 transition-all duration-300 ease-out" />
                   <div className="text-xs text-blue-600">{Math.round(loadingProgress)}% complete</div>
                 </div>
               )}
