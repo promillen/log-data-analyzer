@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Upload, Trash2, Download, BarChart3, Settings, TrendingUp } from 'lucide-react';
 import { TimeSeriesChart } from '@/components/TimeSeriesChart';
 import { DatasetControls } from '@/components/DatasetControls';
+import { TimeFilters } from '@/components/TimeFilters';
 import { StatisticsPanel } from '@/components/StatisticsPanel';
 
 interface DataPoint {
@@ -39,6 +40,8 @@ const Index = () => {
   const [datasets, setDatasets] = useState<Record<string, Dataset>>({});
   const [variableConfigs, setVariableConfigs] = useState<Record<string, VariableConfig>>({});
   const [selectedVariables, setSelectedVariables] = useState<string[]>([]);
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [overlayMode, setOverlayMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const colorPalette = [
@@ -589,23 +592,34 @@ const Index = () => {
 
         {/* Main Content */}
         {totalDatasets > 0 && (
-          <div className="space-y-6">
-            {/* Dataset Controls - Now displayed above the chart */}
-            <DatasetControls
-              datasets={datasets}
-              variableConfigs={variableConfigs}
-              selectedVariables={selectedVariables}
-              onVariableConfigChange={setVariableConfigs}
-              onSelectedVariablesChange={setSelectedVariables}
-              onRemoveDataset={removeDataset}
-            />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - Controls */}
+            <div className="lg:col-span-1 space-y-6">
+              <DatasetControls
+                datasets={datasets}
+                variableConfigs={variableConfigs}
+                selectedVariables={selectedVariables}
+                onVariableConfigChange={setVariableConfigs}
+                onSelectedVariablesChange={setSelectedVariables}
+                onRemoveDataset={removeDataset}
+              />
+              
+              <TimeFilters
+                selectedDays={selectedDays}
+                onSelectedDaysChange={setSelectedDays}
+                overlayMode={overlayMode}
+                onOverlayModeChange={setOverlayMode}
+              />
+            </div>
 
-            {/* Chart and Statistics */}
-            <div className="space-y-6">
+            {/* Right Column - Chart and Statistics */}
+            <div className="lg:col-span-2 space-y-6">
               <TimeSeriesChart
                 datasets={datasets}
                 variableConfigs={variableConfigs}
                 selectedVariables={selectedVariables}
+                selectedDays={selectedDays}
+                overlayMode={overlayMode}
               />
               
               <StatisticsPanel

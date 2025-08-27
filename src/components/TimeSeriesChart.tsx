@@ -31,6 +31,8 @@ interface TimeSeriesChartProps {
   datasets: Record<string, Dataset>;
   variableConfigs: Record<string, VariableConfig>;
   selectedVariables: string[];
+  selectedDays: number[];
+  overlayMode: boolean;
 }
 
 interface TooltipData {
@@ -61,7 +63,9 @@ interface SelectionStats {
 export const TimeSeriesChart = ({
   datasets,
   variableConfigs,
-  selectedVariables
+  selectedVariables,
+  selectedDays,
+  overlayMode
 }: TimeSeriesChartProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fullscreenCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -252,8 +256,58 @@ export const TimeSeriesChart = ({
       if (!config || !variableData) return null;
 
       let data = variableData
-        ?.map(d => ({ x: d.datetime.getTime(), y: d.value }))
+        ?.map(d => ({ x: d.datetime.getTime(), y: d.value, date: d.datetime }))
         .filter(d => d.y !== null) || [];
+
+      // Apply day filtering if selectedDays has values
+      if (selectedDays.length > 0) {
+        data = data.filter(d => {
+          const dayOfWeek = d.date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+          return selectedDays.includes(dayOfWeek);
+        });
+      }
+
+      // Apply overlay mode if enabled
+      if (overlayMode && data.length > 0) {
+        // Group data by date and overlay them on a normalized 24-hour timeline
+        const groupedByDate: { [dateKey: string]: typeof data } = {};
+        
+        data.forEach(point => {
+          const dateKey = point.date.toDateString();
+          if (!groupedByDate[dateKey]) {
+            groupedByDate[dateKey] = [];
+          }
+          groupedByDate[dateKey].push(point);
+        });
+
+        // Create overlaid datasets - normalize to same day (use 2024-01-01 as base)
+        const baseDate = new Date('2024-01-01');
+        const overlaidData: Array<{ x: number; y: number | null; date: Date }> = [];
+
+        Object.entries(groupedByDate).forEach(([dateKey, dayData]) => {
+          dayData.forEach(point => {
+            const originalDate = point.date;
+            const normalizedTime = new Date(
+              baseDate.getFullYear(),
+              baseDate.getMonth(), 
+              baseDate.getDate(),
+              originalDate.getHours(),
+              originalDate.getMinutes(),
+              originalDate.getSeconds(),
+              originalDate.getMilliseconds()
+            );
+            
+            overlaidData.push({
+              x: normalizedTime.getTime(),
+              y: point.y,
+              date: normalizedTime // Use normalized time as the date for chart display
+            });
+          });
+        });
+
+        // Sort by normalized time
+        data = overlaidData.sort((a, b) => a.x - b.x);
+      }
 
       if (data.length > 3000) {
         const step = Math.ceil(data.length / 1500);
@@ -265,8 +319,19 @@ export const TimeSeriesChart = ({
         cleanLabel = cleanLabel.substring('deviceData.'.length);
       }
 
+      // Add filtering info to label if filters are active
+      let labelSuffix = '';
+      if (selectedDays.length > 0 && selectedDays.length < 7) {
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const selectedDayNames = selectedDays.map(day => dayNames[day]).join(',');
+        labelSuffix += ` (${selectedDayNames})`;
+      }
+      if (overlayMode) {
+        labelSuffix += ' [Overlaid]';
+      }
+
       return {
-        label: cleanLabel,
+        label: cleanLabel + labelSuffix,
         data,
         borderColor: config.color,
         backgroundColor: config.color + '10',
@@ -298,7 +363,15 @@ export const TimeSeriesChart = ({
     let displayFormats: any;
     let maxTicksLimit = 10;
     
-    if (timeSpanDays > 30) {
+    if (overlayMode) {
+      // In overlay mode, we're showing a single 24-hour period
+      timeUnit = 'hour';
+      displayFormats = {
+        hour: 'HH:mm',
+        minute: 'HH:mm'
+      };
+      maxTicksLimit = 12;
+    } else if (timeSpanDays > 30) {
       // More than a month - show days/months
       timeUnit = 'day';
       displayFormats = {
@@ -435,7 +508,9 @@ export const TimeSeriesChart = ({
         plugins: {
           title: {
             display: true,
-            text: getDateRangeTitle(),
+            text: overlayMode && selectedDays.length > 0 
+              ? `Overlaid Data - ${selectedDays.map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ')}`
+              : getDateRangeTitle(),
             font: { size: 18, weight: 'bold' },
             color: '#374151'
           },
@@ -723,7 +798,7 @@ export const TimeSeriesChart = ({
         chartInstanceRef.current.destroy();
       }
     };
-  }, [datasets, variableConfigs, selectedVariables]);
+  }, [datasets, variableConfigs, selectedVariables, selectedDays, overlayMode]);
 
   useEffect(() => {
     console.log('=== FULLSCREEN STATE CHANGED ===');
@@ -795,7 +870,7 @@ export const TimeSeriesChart = ({
         clearTimeout(timer);
       };
     }
-  }, [isFullscreen, datasets, variableConfigs, selectedVariables]);
+  }, [isFullscreen, datasets, variableConfigs, selectedVariables, selectedDays, overlayMode]);
 
   if (selectedVariables.length === 0) {
     return (
