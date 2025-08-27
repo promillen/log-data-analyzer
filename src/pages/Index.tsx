@@ -670,8 +670,8 @@ const Index = () => {
         {totalDatasets > 0 && (
           <div className="space-y-6">
             {/* Top Row - Controls side by side */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
+            <div className="flex flex-col lg:flex-row gap-6">
+              <div className="lg:w-2/3">
                 <DatasetControls
                   datasets={datasets}
                   variableConfigs={variableConfigs}
@@ -682,7 +682,7 @@ const Index = () => {
                 />
               </div>
               
-              <div className="lg:col-span-1">
+              <div className="lg:w-1/3">
                 <TimeFilters
                   selectedDays={selectedDays}
                   onSelectedDaysChange={setSelectedDays}

@@ -215,7 +215,14 @@ export const TimeSeriesChart = ({
   };
 
   const createChart = async (canvas: HTMLCanvasElement | null, chartRef: React.MutableRefObject<any>, isFullscreenChart: boolean = false) => {
-    if (!canvas || selectedVariables.length === 0) return;
+    if (!canvas || selectedVariables.length === 0) {
+      console.log('Chart creation skipped:', { 
+        canvas: !!canvas, 
+        selectedVariablesCount: selectedVariables.length,
+        selectedVariables 
+      });
+      return;
+    }
     
     const [
       { Chart, registerables },
@@ -409,7 +416,15 @@ export const TimeSeriesChart = ({
       }];
     }).filter(dataset => dataset.length > 0).flat();
 
-    if (chartDatasets.length === 0) return;
+    console.log('Chart datasets created:', {
+      count: chartDatasets.length,
+      datasets: chartDatasets.map(d => ({ label: d.label, dataCount: d.data.length }))
+    });
+
+    if (chartDatasets.length === 0) {
+      console.log('No chart datasets available - chart creation aborted');
+      return;
+    }
 
     // Calculate data time range for smart x-axis formatting
     const allDataPoints = chartDatasets.flatMap(dataset => dataset.data);

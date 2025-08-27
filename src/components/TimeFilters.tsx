@@ -64,9 +64,9 @@ export const TimeFilters = ({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Overlay Mode Toggle */}
-        <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+        <div className="flex items-center justify-between p-3 bg-accent/10 rounded-lg border">
           <div className="flex items-center gap-2">
-            <Layers className="h-4 w-4 text-blue-600" />
+            <Layers className="h-4 w-4 text-primary" />
             <Label htmlFor="overlay-mode" className="text-sm font-medium">
               Overlay Mode
             </Label>
@@ -79,7 +79,7 @@ export const TimeFilters = ({
         </div>
         
         {overlayMode && (
-          <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded border-l-4 border-blue-400">
+          <div className="text-xs text-muted-foreground bg-muted p-2 rounded border-l-4 border-primary">
             <strong>Overlay Mode:</strong> Selected days will be overlaid on a 24-hour timeline, allowing comparison of patterns across different dates.
           </div>
         )}
