@@ -251,39 +251,30 @@ export const TimeSeriesChart = ({
       chartRef.current = null;
     }
 
-    const chartDatasets = selectedVariables.flatMap(variableId => {
-      console.log(`\n=== Processing variable: ${variableId} ===`);
+    const chartDatasets = selectedVariables.flatMap((variableId, index) => {
+      console.log(`\n=== Processing variable ${index + 1}/${selectedVariables.length}: ${variableId} ===`);
       let matchingDatasetKey: string | null = null;
       let matchingDataset: Dataset | null = null;
       
-      console.log('Available dataset keys:', Object.keys(datasets));
-      
       for (const [datasetKey, dataset] of Object.entries(datasets)) {
-        console.log(`Checking if "${variableId}" starts with "${datasetKey}_"`);
         if (variableId.startsWith(datasetKey + '_')) {
           matchingDatasetKey = datasetKey;
           matchingDataset = dataset;
-          console.log(`✓ Match found! Dataset key: "${datasetKey}"`);
           break;
         }
       }
       
       if (!matchingDatasetKey || !matchingDataset) {
-        console.log('❌ No matching dataset found');
+        console.log('❌ No matching dataset found - returning empty array');
         return [];
       }
       
       const variableName = variableId.substring(matchingDatasetKey.length + 1);
-      console.log(`Extracted variable name: "${variableName}"`);
       const config = variableConfigs[variableId];
       const variableData = matchingDataset.variables[variableName];
       
-      console.log('Config found:', !!config);
-      console.log('Variable data found:', !!variableData);
-      console.log('Available variables in dataset:', Object.keys(matchingDataset.variables));
-      
       if (!config || !variableData) {
-        console.log('❌ Missing config or variable data');
+        console.log('❌ Missing config or variable data - returning empty array');
         return [];
       }
 
@@ -292,19 +283,14 @@ export const TimeSeriesChart = ({
         .filter(d => d.y !== null) || [];
 
       console.log(`📊 Initial data points: ${data.length}`);
-      console.log('📊 Sample initial data:', data.slice(0, 3));
 
       // Apply day filtering if selectedDays has values
       if (selectedDays.length > 0) {
-        console.log(`🗓️ Applying day filter for days: ${selectedDays}`);
         const beforeFilter = data.length;
-        
         data = data.filter(d => {
           const dayOfWeek = d.date.getDay(); // 0 = Sunday, 1 = Monday, etc.
           return selectedDays.includes(dayOfWeek);
         });
-
-        console.log(`🗓️ After day filter: ${data.length} points (was ${beforeFilter})`);
 
         // Sort data by time to ensure proper ordering
         data.sort((a, b) => a.x - b.x);
@@ -334,13 +320,11 @@ export const TimeSeriesChart = ({
           });
           
           data = processedData;
-          console.log(`🗓️ After gap processing: ${data.length} points`);
         }
       }
 
       // Apply overlay mode if enabled - this replaces the filtered data
       if (overlayMode && data.length > 0) {
-        console.log(`🔄 Applying overlay mode`);
         // Group data by date
         const groupedByDate: { [dateKey: string]: typeof data } = {};
         
@@ -351,8 +335,6 @@ export const TimeSeriesChart = ({
           }
           groupedByDate[dateKey].push(point);
         });
-
-        console.log(`🔄 Grouped into ${Object.keys(groupedByDate).length} days`);
 
         // Create separate datasets for each day in overlay mode
         const overlayDatasets: any[] = [];
@@ -419,14 +401,13 @@ export const TimeSeriesChart = ({
           });
         });
 
-        console.log(`🔄 Created ${overlayDatasets.length} overlay datasets`);
+        console.log(`🔄 Returning ${overlayDatasets.length} overlay datasets for ${variableId}`);
         return overlayDatasets;
       }
 
       if (data.length > 3000) {
         const step = Math.ceil(data.length / 1500);
         data = data.filter((_, index) => index % step === 0);
-        console.log(`📉 Downsampled to ${data.length} points`);
       }
 
       let cleanLabel = config.label;
@@ -441,9 +422,6 @@ export const TimeSeriesChart = ({
         const selectedDayNames = selectedDays.map(day => dayNames[day]).join(',');
         labelSuffix += ` (${selectedDayNames})`;
       }
-
-      console.log(`📊 Final dataset for ${variableId}: ${data.length} points`);
-      console.log(`📊 Dataset label: "${cleanLabel + labelSuffix}"`);
 
       const dataset = {
         label: cleanLabel + labelSuffix,
@@ -462,9 +440,13 @@ export const TimeSeriesChart = ({
         yAxisID: config.yAxisGroup || variableId
       };
 
-      console.log(`✅ Returning dataset for ${variableId}`);
-      return [dataset];
-    }).filter(datasetArray => datasetArray && datasetArray.length > 0).flat();
+      console.log(`✅ Created dataset for ${variableId} with ${data.length} points, returning as single item array`);
+      const result = [dataset];
+      console.log('🔵 flatMap result for this variable:', result.length, 'datasets');
+      return result;
+    });
+
+    console.log('🔴 IMMEDIATE flatMap result count:', chartDatasets.length);
 
     console.log('Chart datasets created:', {
       count: chartDatasets.length,
