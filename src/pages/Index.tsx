@@ -144,7 +144,7 @@ const Index = () => {
     }
 
     const totalRows = lines.length - 1; // Exclude header row
-    onProgress?.(5); // 5% for initial setup
+    onProgress?.(2); // 2% for initial setup
 
     // Detect delimiter - prioritize comma for CSV, then tab, then semicolon
     const firstLine = lines[0];
@@ -177,9 +177,9 @@ const Index = () => {
 
     let validRows = 0;
     let invalidRows = 0;
-    let lastReportedProgress = 10;
+    let lastReportedProgress = 5;
     
-    onProgress?.(10); // 10% for setup complete
+    onProgress?.(5); // 5% for setup complete
 
     // Process data in chunks to allow UI updates
     const CHUNK_SIZE = 200; // Smaller chunks for more frequent updates
@@ -255,7 +255,7 @@ const Index = () => {
 
       processedRows = endRow - 1;
       // Ensure progress only increases and update less frequently for smoothness
-      const newProgress = Math.min(10 + (processedRows / totalRows) * 80, 90); // 10% to 90%
+      const newProgress = Math.min(5 + (processedRows / totalRows) * 90, 95); // 5% to 95%
       
       if (newProgress > lastReportedProgress + 1) { // Only update if progress increased by at least 1%
         onProgress?.(newProgress);
@@ -268,7 +268,7 @@ const Index = () => {
       }
     }
 
-    onProgress?.(95); // 95% for data processing complete
+    onProgress?.(98); // 98% for data processing complete
 
     console.log(`Parsed ${validRows} valid rows, ${invalidRows} invalid rows from ${fileName}`);
 
