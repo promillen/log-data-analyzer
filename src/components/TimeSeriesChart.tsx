@@ -285,6 +285,54 @@ export const TimeSeriesChart = ({
 
     if (chartDatasets.length === 0) return;
 
+    // Calculate data time range for smart x-axis formatting
+    const allDataPoints = chartDatasets.flatMap(dataset => dataset.data);
+    const timeValues = allDataPoints.map(point => point.x);
+    const minTime = Math.min(...timeValues);
+    const maxTime = Math.max(...timeValues);
+    const timeSpanHours = (maxTime - minTime) / (1000 * 60 * 60);
+    const timeSpanDays = timeSpanHours / 24;
+    
+    // Determine appropriate time unit and display format based on data span
+    let timeUnit: string;
+    let displayFormats: any;
+    let maxTicksLimit = 10;
+    
+    if (timeSpanDays > 30) {
+      // More than a month - show days/months
+      timeUnit = 'day';
+      displayFormats = {
+        day: 'dd/MM',
+        week: 'dd/MM',
+        month: 'MMM yyyy'
+      };
+      maxTicksLimit = 8;
+    } else if (timeSpanDays > 7) {
+      // More than a week but less than a month - show date + time
+      timeUnit = 'day';
+      displayFormats = {
+        day: 'dd/MM HH:mm',
+        hour: 'dd/MM HH:mm'
+      };
+      maxTicksLimit = 8;
+    } else if (timeSpanDays > 1) {
+      // More than a day but less than a week - show date + time
+      timeUnit = 'hour';
+      displayFormats = {
+        hour: 'dd/MM HH:mm',
+        minute: 'dd/MM HH:mm'
+      };
+      maxTicksLimit = 10;
+    } else {
+      // Single day or less - just show time
+      timeUnit = 'hour';
+      displayFormats = {
+        hour: 'HH:mm',
+        minute: 'HH:mm'
+      };
+      maxTicksLimit = 12;
+    }
+
     // Create Y-axes
     const yAxisGroups: Record<string, string[]> = {};
     selectedVariables.forEach(variableId => {
@@ -367,12 +415,8 @@ export const TimeSeriesChart = ({
           x: {
             type: 'time',
             time: {
-              unit: 'minute',
-              displayFormats: {
-                minute: 'HH:mm',
-                hour: 'HH:mm',
-                day: 'dd/MM'
-              },
+              unit: timeUnit,
+              displayFormats: displayFormats,
               tooltipFormat: 'dd/MM/yyyy HH:mm'
             },
             title: {
@@ -381,7 +425,7 @@ export const TimeSeriesChart = ({
               font: { size: 14, weight: 'bold' }
             },
             ticks: {
-              maxTicksLimit: 10,
+              maxTicksLimit: maxTicksLimit,
               color: '#6B7280'
             },
             grid: { color: '#F3F4F6' }
