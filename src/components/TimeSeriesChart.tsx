@@ -338,12 +338,9 @@ export const TimeSeriesChart = ({
 
         // Create separate datasets for each day in overlay mode
         const overlayDatasets: any[] = [];
-        const colors = [
-          config.color,
-          config.color + 'AA', // 66% opacity
-          config.color + '77', // 46% opacity
-          config.color + '44', // 26% opacity
-          config.color + '22'  // 13% opacity
+        const overlayColors = [
+          '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+          '#F97316', '#06B6D4', '#84CC16', '#EC4899', '#6B7280'
         ];
         
         Object.entries(groupedByDate).forEach(([dateKey, dayData], dayIndex) => {
@@ -383,14 +380,14 @@ export const TimeSeriesChart = ({
           overlayDatasets.push({
             label: cleanLabel + ` (${dayLabel})`,
             data: normalizedData,
-            borderColor: colors[dayIndex % colors.length] || config.color,
-            backgroundColor: (colors[dayIndex % colors.length] || config.color) + '10',
+            borderColor: overlayColors[dayIndex % overlayColors.length] || config.color,
+            backgroundColor: (overlayColors[dayIndex % overlayColors.length] || config.color) + '10',
             borderWidth: dayIndex === 0 ? 2 : 1.5,
             fill: false,
             tension: 0.2,
             pointRadius: 0,
             pointHoverRadius: 4,
-            pointBackgroundColor: colors[dayIndex % colors.length] || config.color,
+            pointBackgroundColor: overlayColors[dayIndex % overlayColors.length] || config.color,
             pointBorderColor: '#ffffff',
             pointBorderWidth: 1,
             spanGaps: false,
