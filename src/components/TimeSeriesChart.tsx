@@ -464,7 +464,7 @@ export const TimeSeriesChart = ({
 
       console.log(`✅ Returning dataset for ${variableId}`);
       return [dataset];
-    }).filter(dataset => dataset.length > 0).flat();
+    }).filter(datasetArray => datasetArray && datasetArray.length > 0).flat();
 
     console.log('Chart datasets created:', {
       count: chartDatasets.length,
