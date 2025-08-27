@@ -668,9 +668,9 @@ const Index = () => {
 
         {/* Main Content */}
         {totalDatasets > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Controls (Now takes 2/3 of space) */}
-            <div className="lg:col-span-2 space-y-6">
+          <div className="space-y-6">
+            {/* Top Row - Controls side by side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <DatasetControls
                 datasets={datasets}
                 variableConfigs={variableConfigs}
@@ -688,8 +688,8 @@ const Index = () => {
               />
             </div>
 
-            {/* Right Column - Chart and Statistics (Now takes 1/3 of space) */}
-            <div className="lg:col-span-1 space-y-6">
+            {/* Bottom Row - Chart and Statistics full width */}
+            <div className="space-y-6">
               <TimeSeriesChart
                 datasets={datasets}
                 variableConfigs={variableConfigs}
