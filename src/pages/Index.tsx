@@ -332,27 +332,45 @@ const Index = () => {
 
     let successCount = 0;
     let errorCount = 0;
-    let processedCount = 0;
 
-    for (const file of Array.from(files)) {
-      setLoadingText(`Processing ${file.name}...`);
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const baseProgress = (i / totalFiles) * 100;
+      const fileProgressStep = 100 / totalFiles;
+      
+      setLoadingText(`Reading ${file.name}...`);
+      setLoadingProgress(baseProgress + fileProgressStep * 0.2);
       
       try {
         let parsedData: Dataset;
         
         if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
+          setLoadingText(`Processing Excel file ${file.name}...`);
+          setLoadingProgress(baseProgress + fileProgressStep * 0.4);
           parsedData = await parseExcelFile(file);
         } else {
           // Handle .txt, .csv, and other text files
+          setLoadingProgress(baseProgress + fileProgressStep * 0.3);
           const fileContent = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
+            reader.onprogress = (e) => {
+              if (e.lengthComputable) {
+                const readProgress = (e.loaded / e.total) * 0.3;
+                setLoadingProgress(baseProgress + fileProgressStep * (0.3 + readProgress));
+              }
+            };
             reader.onload = (e) => resolve(e.target?.result as string);
             reader.onerror = () => reject(new Error('Failed to read file'));
             reader.readAsText(file);
           });
           
+          setLoadingText(`Parsing ${file.name}...`);
+          setLoadingProgress(baseProgress + fileProgressStep * 0.7);
           parsedData = parseDataFile(fileContent, file.name);
         }
+        
+        setLoadingText(`Configuring ${file.name}...`);
+        setLoadingProgress(baseProgress + fileProgressStep * 0.9);
         
         // Use clean filename as dataset key
         const cleanFileName = getCleanFileName(file.name);
@@ -371,14 +389,13 @@ const Index = () => {
         
         setVariableConfigs(prev => ({ ...prev, ...newConfigs }));
         successCount++;
+        
+        setLoadingProgress(baseProgress + fileProgressStep);
       } catch (error) {
         console.error('Error processing file:', file.name, error);
         errorCount++;
         toast.error(`Error in ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      } finally {
-        processedCount++;
-        const progress = (processedCount / totalFiles) * 100;
-        setLoadingProgress(progress);
+        setLoadingProgress(baseProgress + fileProgressStep);
       }
     }
 
