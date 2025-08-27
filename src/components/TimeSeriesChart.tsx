@@ -221,6 +221,8 @@ export const TimeSeriesChart = ({
     console.log('Selected variables length:', selectedVariables.length);
     console.log('Available datasets:', Object.keys(datasets));
     console.log('Variable configs keys:', Object.keys(variableConfigs));
+    console.log('Selected days:', selectedDays);
+    console.log('Overlay mode:', overlayMode);
     
     if (!canvas || selectedVariables.length === 0) {
       console.log('Chart creation skipped:', { 
@@ -289,12 +291,20 @@ export const TimeSeriesChart = ({
         ?.map(d => ({ x: d.datetime.getTime(), y: d.value, date: d.datetime }))
         .filter(d => d.y !== null) || [];
 
+      console.log(`📊 Initial data points: ${data.length}`);
+      console.log('📊 Sample initial data:', data.slice(0, 3));
+
       // Apply day filtering if selectedDays has values
       if (selectedDays.length > 0) {
+        console.log(`🗓️ Applying day filter for days: ${selectedDays}`);
+        const beforeFilter = data.length;
+        
         data = data.filter(d => {
           const dayOfWeek = d.date.getDay(); // 0 = Sunday, 1 = Monday, etc.
           return selectedDays.includes(dayOfWeek);
         });
+
+        console.log(`🗓️ After day filter: ${data.length} points (was ${beforeFilter})`);
 
         // Sort data by time to ensure proper ordering
         data.sort((a, b) => a.x - b.x);
@@ -324,11 +334,13 @@ export const TimeSeriesChart = ({
           });
           
           data = processedData;
+          console.log(`🗓️ After gap processing: ${data.length} points`);
         }
       }
 
       // Apply overlay mode if enabled - this replaces the filtered data
       if (overlayMode && data.length > 0) {
+        console.log(`🔄 Applying overlay mode`);
         // Group data by date
         const groupedByDate: { [dateKey: string]: typeof data } = {};
         
@@ -339,6 +351,8 @@ export const TimeSeriesChart = ({
           }
           groupedByDate[dateKey].push(point);
         });
+
+        console.log(`🔄 Grouped into ${Object.keys(groupedByDate).length} days`);
 
         // Create separate datasets for each day in overlay mode
         const overlayDatasets: any[] = [];
@@ -381,6 +395,11 @@ export const TimeSeriesChart = ({
             month: '2-digit' 
           });
 
+          let cleanLabel = config.label;
+          if (cleanLabel.startsWith('deviceData.')) {
+            cleanLabel = cleanLabel.substring('deviceData.'.length);
+          }
+
           overlayDatasets.push({
             label: cleanLabel + ` (${dayLabel})`,
             data: normalizedData,
@@ -400,12 +419,14 @@ export const TimeSeriesChart = ({
           });
         });
 
+        console.log(`🔄 Created ${overlayDatasets.length} overlay datasets`);
         return overlayDatasets;
       }
 
       if (data.length > 3000) {
         const step = Math.ceil(data.length / 1500);
         data = data.filter((_, index) => index % step === 0);
+        console.log(`📉 Downsampled to ${data.length} points`);
       }
 
       let cleanLabel = config.label;
@@ -421,7 +442,10 @@ export const TimeSeriesChart = ({
         labelSuffix += ` (${selectedDayNames})`;
       }
 
-      return [{
+      console.log(`📊 Final dataset for ${variableId}: ${data.length} points`);
+      console.log(`📊 Dataset label: "${cleanLabel + labelSuffix}"`);
+
+      const dataset = {
         label: cleanLabel + labelSuffix,
         data,
         borderColor: config.color,
@@ -436,7 +460,10 @@ export const TimeSeriesChart = ({
         pointBorderWidth: 2,
         spanGaps: false, // Don't span gaps to avoid connecting across day boundaries
         yAxisID: config.yAxisGroup || variableId
-      }];
+      };
+
+      console.log(`✅ Returning dataset for ${variableId}`);
+      return [dataset];
     }).filter(dataset => dataset.length > 0).flat();
 
     console.log('Chart datasets created:', {
