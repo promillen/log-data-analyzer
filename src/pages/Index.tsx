@@ -41,7 +41,7 @@ const Index = () => {
   const [datasets, setDatasets] = useState<Record<string, Dataset>>({});
   const [variableConfigs, setVariableConfigs] = useState<Record<string, VariableConfig>>({});
   const [selectedVariables, setSelectedVariables] = useState<string[]>([]);
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]); // All days selected by default
   const [overlayMode, setOverlayMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);

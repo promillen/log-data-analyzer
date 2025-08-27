@@ -346,8 +346,6 @@ export const TimeSeriesChart = ({
           config.color + '22'  // 13% opacity
         ];
         
-        const lineStyles = [0, [5, 5], [10, 5], [15, 5, 5, 5], [20, 5]]; // Different dash patterns
-        
         Object.entries(groupedByDate).forEach(([dateKey, dayData], dayIndex) => {
           // Normalize each day's data to a 24-hour timeline
           const baseDate = new Date('2024-01-01');
@@ -388,7 +386,6 @@ export const TimeSeriesChart = ({
             borderColor: colors[dayIndex % colors.length] || config.color,
             backgroundColor: (colors[dayIndex % colors.length] || config.color) + '10',
             borderWidth: dayIndex === 0 ? 2 : 1.5,
-            borderDash: lineStyles[dayIndex % lineStyles.length],
             fill: false,
             tension: 0.2,
             pointRadius: 0,
