@@ -5,7 +5,7 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: process.env.NODE_ENV === 'production' ? '/time-series-visualizer-zen/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/3a-console-log-analyser/' : '/',
   server: {
     host: "::",
     port: 8080,

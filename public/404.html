@@ -7,7 +7,7 @@
     <script>
       // Redirect all routes to index.html for client-side routing
       const path = window.location.pathname;
-      const base = '/time-series-visualizer-zen/';
+      const base = '/3a-console-log-analyser/';
       if (path !== base) {
         window.location.replace(base + '#' + path.slice(base.length));
       }
@@ -17,7 +17,7 @@
     <div>Redirecting...</div>
     <script>
       setTimeout(() => {
-        window.location.href = '/time-series-visualizer-zen/';
+        window.location.href = '/3a-console-log-analyser/';
       }, 100);
     </script>
   </body>
