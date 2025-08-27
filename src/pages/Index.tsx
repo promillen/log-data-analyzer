@@ -61,20 +61,15 @@ const Index = () => {
   };
 
   const cleanValue = (value: string): number | null => {
-    console.log(`Raw value before cleaning: "${value}"`);
-    
     // Handle Excel-exported CSV format with quotes and equals signs
     // Remove = at start, then remove all quotes
     let cleaned = value.replace(/^=/, '').replace(/"/g, '').trim();
-    console.log(`After cleaning: "${cleaned}"`);
     
     if (cleaned === '' || cleaned === 'null' || cleaned === 'undefined') {
-      console.log('Value is empty/null/undefined, returning null');
       return null;
     }
     
     const parsed = parseFloat(cleaned);
-    console.log(`Parsed float: ${parsed}, isNaN: ${isNaN(parsed)}`);
     
     return isNaN(parsed) ? null : parsed;
   };
@@ -83,13 +78,10 @@ const Index = () => {
     // Remove any surrounding quotes first
     const cleanTimestamp = timestampStr.replace(/^"?/, '').replace(/"?$/, '').trim();
     
-    console.log(`Parsing timestamp: "${timestampStr}" -> cleaned: "${cleanTimestamp}"`);
-    
     // Try ISO format first: YYYY-MM-DD HH:MM:SS
     if (cleanTimestamp.includes('-') && cleanTimestamp.length >= 19) {
       const date = new Date(cleanTimestamp);
       if (!isNaN(date.getTime())) {
-        console.log(`Successfully parsed ISO format: ${date}`);
         return date;
       }
     }
@@ -133,7 +125,6 @@ const Index = () => {
       return null;
     }
     
-    console.log(`Successfully parsed DD/MM/YYYY format: ${date}`);
     return date;
   };
 
