@@ -137,7 +137,152 @@ const Index = () => {
     return date;
   };
 
-  const parseExcelFile = useCallback(async (file: File): Promise<Dataset> => {
+  const parseDataFile = useCallback((fileContent: string, fileName: string, onProgress?: (progress: number) => void): Dataset => {
+    const lines = fileContent.trim().split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      throw new Error('File must have at least a header row and one data row');
+    }
+
+    const totalRows = lines.length - 1; // Exclude header row
+    onProgress?.(5); // 5% for initial setup
+
+    // Detect delimiter - prioritize comma for CSV, then tab, then semicolon
+    const firstLine = lines[0];
+    let delimiter = ',';
+    if (firstLine.split(',').length < 2) {
+      delimiter = '\t';
+      if (firstLine.split('\t').length < 2) {
+        delimiter = ';';
+      }
+    }
+
+    console.log(`Detected delimiter: "${delimiter}" for file: ${fileName}`);
+    console.log(`First few lines of file:`, lines.slice(0, 3));
+    console.log(`Total rows to process: ${totalRows}`);
+
+    // Parse header
+    const headerParts = lines[0].split(delimiter).map(h => h.trim());
+    if (headerParts.length < 2) {
+      throw new Error('File must have at least timestamp and one variable column');
+    }
+
+    // First column should be timestamp, rest are variables
+    const headers = headerParts.slice(1);
+    console.log(`Found headers: ${headers.join(', ')}`);
+    
+    const variables: Record<string, DataPoint[]> = {};
+    headers.forEach(header => {
+      variables[header] = [];
+    });
+
+    let validRows = 0;
+    let invalidRows = 0;
+    
+    onProgress?.(10); // 10% for setup complete
+
+    // Process all data rows with progress updates
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Update progress every 1000 rows or for small files, every 100 rows
+      const progressInterval = totalRows > 10000 ? 1000 : Math.max(100, Math.floor(totalRows / 20));
+      if (i % progressInterval === 0 || i === lines.length - 1) {
+        const progress = 10 + ((i - 1) / totalRows) * 80; // 10% to 90%
+        onProgress?.(progress);
+      }
+
+      // Log details only for first 5 rows
+      if (i <= 5) {
+        console.log(`\nProcessing line ${i}: "${line}"`);
+      }
+      
+      const parts = line.split(delimiter).map(part => part.trim());
+      
+      if (i <= 5) {
+        console.log(`Split into ${parts.length} parts:`, parts);
+      }
+      
+      if (parts.length < 2) {
+        if (i <= 5) {
+          console.warn(`Skipping line ${i + 1}: insufficient columns`);
+        }
+        continue;
+      }
+
+      const [timestampStr, ...values] = parts;
+      
+      if (i <= 5) {
+        console.log(`Timestamp: "${timestampStr}"`);
+        console.log(`Values:`, values);
+      }
+      
+      // Parse timestamp
+      const datetime = parseTimestamp(timestampStr);
+      if (!datetime || isNaN(datetime.getTime())) {
+        if (i <= 5) {
+          console.warn(`Invalid timestamp on line ${i + 1}: "${timestampStr}"`);
+        }
+        invalidRows++;
+        continue;
+      }
+
+      validRows++;
+
+      // Parse values for each variable
+      headers.forEach((header, index) => {
+        if (index < values.length) {
+          if (i <= 5) {
+            console.log(`Processing value for header "${header}": "${values[index]}"`);
+          }
+          const value = cleanValue(values[index]);
+          if (i <= 5) {
+            console.log(`Cleaned value: ${value}`);
+          }
+          variables[header].push({
+            datetime: datetime,
+            value: value
+          });
+        } else {
+          variables[header].push({
+            datetime: datetime,
+            value: null
+          });
+        }
+      });
+    }
+
+    onProgress?.(95); // 95% for data processing complete
+
+    console.log(`Parsed ${validRows} valid rows, ${invalidRows} invalid rows from ${fileName}`);
+
+    // Log sample data for first variable
+    const firstVariable = headers[0];
+    if (variables[firstVariable]) {
+      console.log(`Sample data for "${firstVariable}":`, variables[firstVariable].slice(0, 3));
+    }
+
+    if (validRows === 0) {
+      throw new Error('No valid data rows found');
+    }
+
+    const colors: Record<string, string> = {};
+    headers.forEach(header => {
+      colors[header] = getNextColor();
+    });
+
+    onProgress?.(100); // 100% complete
+
+    return {
+      fileName,
+      headers,
+      variables,
+      dataCount: validRows,
+      colors
+    };
+  }, []);
+
+  const parseExcelFile = useCallback(async (file: File, onProgress?: (progress: number) => void): Promise<Dataset> => {
     const XLSX = await import('xlsx');
     
     return new Promise((resolve, reject) => {
@@ -158,9 +303,17 @@ const Index = () => {
             throw new Error('Excel file must have at least a header row and one data row');
           }
           
+          onProgress?.(50); // 50% for Excel conversion
+          
           // Convert to CSV-like format
           const csvContent = jsonData.map((row: any[]) => row.join('\t')).join('\n');
-          const dataset = parseDataFile(csvContent, file.name);
+          
+          // Create progress wrapper for parseDataFile
+          const parseProgress = (progress: number) => {
+            onProgress?.(50 + (progress / 2)); // Map 0-100% to 50-100%
+          };
+          
+          const dataset = parseDataFile(csvContent, file.name, parseProgress);
           resolve(dataset);
         } catch (error) {
           reject(error);
@@ -169,152 +322,7 @@ const Index = () => {
       reader.onerror = () => reject(new Error('Failed to read Excel file'));
       reader.readAsArrayBuffer(file);
     });
-  }, []);
-
-  const parseDataFile = useCallback((fileContent: string, fileName: string): Dataset => {
-    const lines = fileContent.trim().split('\n').filter(line => line.trim());
-    if (lines.length < 2) {
-      throw new Error('File must have at least a header row and one data row');
-    }
-
-    // Detect delimiter - prioritize comma for CSV, then tab, then semicolon
-    const firstLine = lines[0];
-    let delimiter = ',';
-    if (firstLine.split(',').length < 2) {
-      delimiter = '\t';
-      if (firstLine.split('\t').length < 2) {
-        delimiter = ';';
-      }
-    }
-
-    console.log(`Detected delimiter: "${delimiter}" for file: ${fileName}`);
-    console.log(`First few lines of file:`, lines.slice(0, 3));
-
-    // Parse header
-    const headerParts = lines[0].split(delimiter).map(h => h.trim());
-    if (headerParts.length < 2) {
-      throw new Error('File must have at least timestamp and one variable column');
-    }
-
-    // First column should be timestamp, rest are variables
-    const headers = headerParts.slice(1);
-    console.log(`Found headers: ${headers.join(', ')}`);
-    
-    const variables: Record<string, DataPoint[]> = {};
-    headers.forEach(header => {
-      variables[header] = [];
-    });
-
-    let validRows = 0;
-    let invalidRows = 0;
-    
-    for (let i = 1; i < lines.length && i < 6; i++) { // Only process first 5 rows for debugging
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      console.log(`\nProcessing line ${i}: "${line}"`);
-      const parts = line.split(delimiter).map(part => part.trim());
-      console.log(`Split into ${parts.length} parts:`, parts);
-      
-      if (parts.length < 2) {
-        console.warn(`Skipping line ${i + 1}: insufficient columns`);
-        continue;
-      }
-
-      const [timestampStr, ...values] = parts;
-      console.log(`Timestamp: "${timestampStr}"`);
-      console.log(`Values:`, values);
-      
-      // Parse timestamp
-      const datetime = parseTimestamp(timestampStr);
-      if (!datetime || isNaN(datetime.getTime())) {
-        console.warn(`Invalid timestamp on line ${i + 1}: "${timestampStr}"`);
-        invalidRows++;
-        continue;
-      }
-
-      validRows++;
-
-      // Parse values for each variable
-      headers.forEach((header, index) => {
-        if (index < values.length) {
-          console.log(`Processing value for header "${header}": "${values[index]}"`);
-          const value = cleanValue(values[index]);
-          console.log(`Cleaned value: ${value}`);
-          variables[header].push({
-            datetime: datetime,
-            value: value
-          });
-        } else {
-          variables[header].push({
-            datetime: datetime,
-            value: null
-          });
-        }
-      });
-    }
-
-    // Process the rest of the lines without detailed logging
-    for (let i = 6; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const parts = line.split(delimiter).map(part => part.trim());
-      if (parts.length < 2) {
-        continue;
-      }
-
-      const [timestampStr, ...values] = parts;
-      
-      const datetime = parseTimestamp(timestampStr);
-      if (!datetime || isNaN(datetime.getTime())) {
-        invalidRows++;
-        continue;
-      }
-
-      validRows++;
-
-      headers.forEach((header, index) => {
-        if (index < values.length) {
-          const value = cleanValue(values[index]);
-          variables[header].push({
-            datetime: datetime,
-            value: value
-          });
-        } else {
-          variables[header].push({
-            datetime: datetime,
-            value: null
-          });
-        }
-      });
-    }
-
-    console.log(`Parsed ${validRows} valid rows, ${invalidRows} invalid rows from ${fileName}`);
-
-    // Log sample data for first variable
-    const firstVariable = headers[0];
-    if (variables[firstVariable]) {
-      console.log(`Sample data for "${firstVariable}":`, variables[firstVariable].slice(0, 3));
-    }
-
-    if (validRows === 0) {
-      throw new Error('No valid data rows found');
-    }
-
-    const colors: Record<string, string> = {};
-    headers.forEach(header => {
-      colors[header] = getNextColor();
-    });
-
-    return {
-      fileName,
-      headers,
-      variables,
-      dataCount: validRows,
-      colors
-    };
-  }, []);
+  }, [parseDataFile]);
 
   const getCleanFileName = (fileName: string): string => {
     // Remove file extension and clean up the name for use as dataset key
@@ -339,38 +347,43 @@ const Index = () => {
       const fileProgressStep = 100 / totalFiles;
       
       setLoadingText(`Reading ${file.name}...`);
-      setLoadingProgress(baseProgress + fileProgressStep * 0.2);
+      setLoadingProgress(baseProgress);
       
       try {
         let parsedData: Dataset;
         
         if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
           setLoadingText(`Processing Excel file ${file.name}...`);
-          setLoadingProgress(baseProgress + fileProgressStep * 0.4);
-          parsedData = await parseExcelFile(file);
+          
+          // Create progress callback for Excel parsing
+          const onExcelProgress = (progress: number) => {
+            const adjustedProgress = baseProgress + (fileProgressStep * progress / 100) * 0.9;
+            setLoadingProgress(adjustedProgress);
+          };
+          
+          parsedData = await parseExcelFile(file, onExcelProgress);
         } else {
           // Handle .txt, .csv, and other text files
-          setLoadingProgress(baseProgress + fileProgressStep * 0.3);
           const fileContent = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
-            reader.onprogress = (e) => {
-              if (e.lengthComputable) {
-                const readProgress = (e.loaded / e.total) * 0.3;
-                setLoadingProgress(baseProgress + fileProgressStep * (0.3 + readProgress));
-              }
-            };
             reader.onload = (e) => resolve(e.target?.result as string);
             reader.onerror = () => reject(new Error('Failed to read file'));
             reader.readAsText(file);
           });
           
           setLoadingText(`Parsing ${file.name}...`);
-          setLoadingProgress(baseProgress + fileProgressStep * 0.7);
-          parsedData = parseDataFile(fileContent, file.name);
+          
+          // Create progress callback for parsing
+          const onParseProgress = (progress: number) => {
+            const adjustedProgress = baseProgress + (fileProgressStep * progress / 100) * 0.9;
+            setLoadingProgress(adjustedProgress);
+          };
+          
+          parsedData = parseDataFile(fileContent, file.name, onParseProgress);
         }
         
         setLoadingText(`Configuring ${file.name}...`);
-        setLoadingProgress(baseProgress + fileProgressStep * 0.9);
+        setLoadingProgress(baseProgress + fileProgressStep * 0.95);
         
         // Use clean filename as dataset key
         const cleanFileName = getCleanFileName(file.name);
