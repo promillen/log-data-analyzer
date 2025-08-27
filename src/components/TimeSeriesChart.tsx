@@ -215,6 +215,13 @@ export const TimeSeriesChart = ({
   };
 
   const createChart = async (canvas: HTMLCanvasElement | null, chartRef: React.MutableRefObject<any>, isFullscreenChart: boolean = false) => {
+    console.log('=== CHART CREATION START ===');
+    console.log('Canvas:', !!canvas);
+    console.log('Selected variables:', selectedVariables);
+    console.log('Selected variables length:', selectedVariables.length);
+    console.log('Available datasets:', Object.keys(datasets));
+    console.log('Variable configs keys:', Object.keys(variableConfigs));
+    
     if (!canvas || selectedVariables.length === 0) {
       console.log('Chart creation skipped:', { 
         canvas: !!canvas, 
