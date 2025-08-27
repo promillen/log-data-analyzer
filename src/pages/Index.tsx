@@ -670,22 +670,26 @@ const Index = () => {
         {totalDatasets > 0 && (
           <div className="space-y-6">
             {/* Top Row - Controls side by side */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <DatasetControls
-                datasets={datasets}
-                variableConfigs={variableConfigs}
-                selectedVariables={selectedVariables}
-                onVariableConfigChange={setVariableConfigs}
-                onSelectedVariablesChange={setSelectedVariables}
-                onRemoveDataset={removeDataset}
-              />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <DatasetControls
+                  datasets={datasets}
+                  variableConfigs={variableConfigs}
+                  selectedVariables={selectedVariables}
+                  onVariableConfigChange={setVariableConfigs}
+                  onSelectedVariablesChange={setSelectedVariables}
+                  onRemoveDataset={removeDataset}
+                />
+              </div>
               
-              <TimeFilters
-                selectedDays={selectedDays}
-                onSelectedDaysChange={setSelectedDays}
-                overlayMode={overlayMode}
-                onOverlayModeChange={setOverlayMode}
-              />
+              <div className="lg:col-span-1">
+                <TimeFilters
+                  selectedDays={selectedDays}
+                  onSelectedDaysChange={setSelectedDays}
+                  overlayMode={overlayMode}
+                  onOverlayModeChange={setOverlayMode}
+                />
+              </div>
             </div>
 
             {/* Bottom Row - Chart and Statistics full width */}
