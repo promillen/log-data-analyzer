@@ -235,7 +235,7 @@ export const TimeSeriesChart = ({
       chartRef.current = null;
     }
 
-    const chartDatasets = selectedVariables.map(variableId => {
+    const chartDatasets = selectedVariables.flatMap(variableId => {
       let matchingDatasetKey: string | null = null;
       let matchingDataset: Dataset | null = null;
       
@@ -247,13 +247,13 @@ export const TimeSeriesChart = ({
         }
       }
       
-      if (!matchingDatasetKey || !matchingDataset) return null;
+      if (!matchingDatasetKey || !matchingDataset) return [];
       
       const variableName = variableId.substring(matchingDatasetKey.length + 1);
       const config = variableConfigs[variableId];
       const variableData = matchingDataset.variables[variableName];
       
-      if (!config || !variableData) return null;
+      if (!config || !variableData) return [];
 
       let data = variableData
         ?.map(d => ({ x: d.datetime.getTime(), y: d.value, date: d.datetime }))
@@ -265,11 +265,41 @@ export const TimeSeriesChart = ({
           const dayOfWeek = d.date.getDay(); // 0 = Sunday, 1 = Monday, etc.
           return selectedDays.includes(dayOfWeek);
         });
+
+        // Sort data by time to ensure proper ordering
+        data.sort((a, b) => a.x - b.x);
+
+        // Break connections between non-consecutive days by inserting null values
+        if (data.length > 1) {
+          const processedData: typeof data = [];
+          let currentDayKey = '';
+          
+          data.forEach((point, index) => {
+            const dayKey = point.date.toDateString();
+            
+            // If this is a new day and not the first point, insert a gap
+            if (dayKey !== currentDayKey && index > 0) {
+              // Check if there's a time gap > 1 day from the previous point
+              const prevPoint = data[index - 1];
+              const timeDiff = (point.x - prevPoint.x) / (1000 * 60 * 60); // hours
+              
+              if (timeDiff > 24) {
+                // Insert a null value to break the line
+                processedData.push({ x: prevPoint.x + 1, y: null, date: prevPoint.date });
+              }
+            }
+            
+            processedData.push(point);
+            currentDayKey = dayKey;
+          });
+          
+          data = processedData;
+        }
       }
 
-      // Apply overlay mode if enabled
+      // Apply overlay mode if enabled - this replaces the filtered data
       if (overlayMode && data.length > 0) {
-        // Group data by date and overlay them on a normalized 24-hour timeline
+        // Group data by date
         const groupedByDate: { [dateKey: string]: typeof data } = {};
         
         data.forEach(point => {
@@ -280,12 +310,22 @@ export const TimeSeriesChart = ({
           groupedByDate[dateKey].push(point);
         });
 
-        // Create overlaid datasets - normalize to same day (use 2024-01-01 as base)
-        const baseDate = new Date('2024-01-01');
-        const overlaidData: Array<{ x: number; y: number | null; date: Date }> = [];
-
-        Object.entries(groupedByDate).forEach(([dateKey, dayData]) => {
-          dayData.forEach(point => {
+        // Create separate datasets for each day in overlay mode
+        const overlayDatasets: any[] = [];
+        const colors = [
+          config.color,
+          config.color + 'AA', // 66% opacity
+          config.color + '77', // 46% opacity
+          config.color + '44', // 26% opacity
+          config.color + '22'  // 13% opacity
+        ];
+        
+        const lineStyles = [0, [5, 5], [10, 5], [15, 5, 5, 5], [20, 5]]; // Different dash patterns
+        
+        Object.entries(groupedByDate).forEach(([dateKey, dayData], dayIndex) => {
+          // Normalize each day's data to a 24-hour timeline
+          const baseDate = new Date('2024-01-01');
+          const normalizedData = dayData.map(point => {
             const originalDate = point.date;
             const normalizedTime = new Date(
               baseDate.getFullYear(),
@@ -297,16 +337,40 @@ export const TimeSeriesChart = ({
               originalDate.getMilliseconds()
             );
             
-            overlaidData.push({
+            return {
               x: normalizedTime.getTime(),
               y: point.y,
-              date: normalizedTime // Use normalized time as the date for chart display
-            });
+              date: normalizedTime
+            };
+          }).sort((a, b) => a.x - b.x);
+
+          const dayDate = new Date(dateKey);
+          const dayLabel = dayDate.toLocaleDateString('en-GB', { 
+            weekday: 'short', 
+            day: '2-digit', 
+            month: '2-digit' 
+          });
+
+          overlayDatasets.push({
+            label: cleanLabel + ` (${dayLabel})`,
+            data: normalizedData,
+            borderColor: colors[dayIndex % colors.length] || config.color,
+            backgroundColor: (colors[dayIndex % colors.length] || config.color) + '10',
+            borderWidth: dayIndex === 0 ? 2 : 1.5,
+            borderDash: lineStyles[dayIndex % lineStyles.length],
+            fill: false,
+            tension: 0.2,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            pointBackgroundColor: colors[dayIndex % colors.length] || config.color,
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 1,
+            spanGaps: false,
+            yAxisID: config.yAxisGroup || variableId
           });
         });
 
-        // Sort by normalized time
-        data = overlaidData.sort((a, b) => a.x - b.x);
+        return overlayDatasets;
       }
 
       if (data.length > 3000) {
@@ -326,11 +390,8 @@ export const TimeSeriesChart = ({
         const selectedDayNames = selectedDays.map(day => dayNames[day]).join(',');
         labelSuffix += ` (${selectedDayNames})`;
       }
-      if (overlayMode) {
-        labelSuffix += ' [Overlaid]';
-      }
 
-      return {
+      return [{
         label: cleanLabel + labelSuffix,
         data,
         borderColor: config.color,
@@ -343,10 +404,10 @@ export const TimeSeriesChart = ({
         pointBackgroundColor: config.color,
         pointBorderColor: '#ffffff',
         pointBorderWidth: 2,
-        spanGaps: true,
+        spanGaps: false, // Don't span gaps to avoid connecting across day boundaries
         yAxisID: config.yAxisGroup || variableId
-      };
-    }).filter(Boolean);
+      }];
+    }).filter(dataset => dataset.length > 0).flat();
 
     if (chartDatasets.length === 0) return;
 
