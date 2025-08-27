@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { Upload, Trash2, Download, BarChart3, Settings, TrendingUp } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { TimeSeriesChart } from '@/components/TimeSeriesChart';
 import { DatasetControls } from '@/components/DatasetControls';
 import { TimeFilters } from '@/components/TimeFilters';
@@ -42,6 +43,9 @@ const Index = () => {
   const [selectedVariables, setSelectedVariables] = useState<string[]>([]);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
   const [overlayMode, setOverlayMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingText, setLoadingText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const colorPalette = [
@@ -321,11 +325,18 @@ const Index = () => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    const totalFiles = files.length;
+    setIsLoading(true);
+    setLoadingProgress(0);
+    setLoadingText(`Processing ${totalFiles} file${totalFiles > 1 ? 's' : ''}...`);
+
     let successCount = 0;
     let errorCount = 0;
     let processedCount = 0;
 
     for (const file of Array.from(files)) {
+      setLoadingText(`Processing ${file.name}...`);
+      
       try {
         let parsedData: Dataset;
         
@@ -366,8 +377,14 @@ const Index = () => {
         toast.error(`Error in ${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       } finally {
         processedCount++;
+        const progress = (processedCount / totalFiles) * 100;
+        setLoadingProgress(progress);
       }
     }
+
+    setIsLoading(false);
+    setLoadingProgress(0);
+    setLoadingText('');
 
     if (successCount > 0) {
       toast.success(`Successfully loaded ${successCount} file(s)`);
@@ -546,10 +563,21 @@ const Index = () => {
                   Supported timestamp format: YYYY-MM-DD HH:MM:SS or DD/MM/YYYY HH.MM.SS
                 </p>
               </div>
+              
+              {/* Loading Progress */}
+              {isLoading && (
+                <div className="space-y-3 max-w-md mx-auto">
+                  <div className="text-sm font-medium text-blue-700">{loadingText}</div>
+                  <Progress value={loadingProgress} className="h-2" />
+                  <div className="text-xs text-blue-600">{Math.round(loadingProgress)}% complete</div>
+                </div>
+              )}
+              
               <div className="flex flex-wrap gap-3 justify-center">
                 <Button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  disabled={isLoading}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                   size="lg"
                 >
                   <Upload className="h-5 w-5 mr-2" />
@@ -559,18 +587,20 @@ const Index = () => {
                   <>
                     <Button 
                       onClick={clearAllData}
+                      disabled={isLoading}
                       variant="outline"
                       size="lg"
-                      className="border-red-200 text-red-600 hover:bg-red-50"
+                      className="border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
                     >
                       <Trash2 className="h-5 w-5 mr-2" />
                       Clear All
                     </Button>
                     <Button 
                       onClick={exportData}
+                      disabled={isLoading}
                       variant="outline"
                       size="lg"
-                      className="border-green-200 text-green-600 hover:bg-green-50"
+                      className="border-green-200 text-green-600 hover:bg-green-50 disabled:opacity-50"
                     >
                       <Download className="h-5 w-5 mr-2" />
                       Export Data
