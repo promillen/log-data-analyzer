@@ -380,14 +380,14 @@ export const TimeSeriesChart = ({
           overlayDatasets.push({
             label: cleanLabel + ` (${dayLabel})`,
             data: normalizedData,
-            borderColor: overlayColors[dayIndex % overlayColors.length] || config.color,
+            borderColor: overlayColors[dayIndex % overlayColors.length] + 'CC', // 80% opacity
             backgroundColor: (overlayColors[dayIndex % overlayColors.length] || config.color) + '10',
             borderWidth: dayIndex === 0 ? 2 : 1.5,
             fill: false,
             tension: 0.2,
             pointRadius: 0,
             pointHoverRadius: 4,
-            pointBackgroundColor: overlayColors[dayIndex % overlayColors.length] || config.color,
+            pointBackgroundColor: overlayColors[dayIndex % overlayColors.length] + 'CC', // 80% opacity
             pointBorderColor: '#ffffff',
             pointBorderWidth: 1,
             spanGaps: false,
