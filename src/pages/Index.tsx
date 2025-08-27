@@ -182,7 +182,7 @@ const Index = () => {
     onProgress?.(10); // 10% for setup complete
 
     // Process data in chunks to allow UI updates
-    const CHUNK_SIZE = 2000; // Larger chunks for smoother progress
+    const CHUNK_SIZE = 200; // Smaller chunks for more frequent updates
     let processedRows = 0;
 
     for (let startRow = 1; startRow < lines.length; startRow += CHUNK_SIZE) {
@@ -257,7 +257,7 @@ const Index = () => {
       // Ensure progress only increases and update less frequently for smoothness
       const newProgress = Math.min(10 + (processedRows / totalRows) * 80, 90); // 10% to 90%
       
-      if (newProgress > lastReportedProgress + 2) { // Only update if progress increased by at least 2%
+      if (newProgress > lastReportedProgress + 1) { // Only update if progress increased by at least 1%
         onProgress?.(newProgress);
         lastReportedProgress = newProgress;
       }
