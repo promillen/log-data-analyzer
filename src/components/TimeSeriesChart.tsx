@@ -243,24 +243,40 @@ export const TimeSeriesChart = ({
     }
 
     const chartDatasets = selectedVariables.flatMap(variableId => {
+      console.log(`\n=== Processing variable: ${variableId} ===`);
       let matchingDatasetKey: string | null = null;
       let matchingDataset: Dataset | null = null;
       
+      console.log('Available dataset keys:', Object.keys(datasets));
+      
       for (const [datasetKey, dataset] of Object.entries(datasets)) {
+        console.log(`Checking if "${variableId}" starts with "${datasetKey}_"`);
         if (variableId.startsWith(datasetKey + '_')) {
           matchingDatasetKey = datasetKey;
           matchingDataset = dataset;
+          console.log(`✓ Match found! Dataset key: "${datasetKey}"`);
           break;
         }
       }
       
-      if (!matchingDatasetKey || !matchingDataset) return [];
+      if (!matchingDatasetKey || !matchingDataset) {
+        console.log('❌ No matching dataset found');
+        return [];
+      }
       
       const variableName = variableId.substring(matchingDatasetKey.length + 1);
+      console.log(`Extracted variable name: "${variableName}"`);
       const config = variableConfigs[variableId];
       const variableData = matchingDataset.variables[variableName];
       
-      if (!config || !variableData) return [];
+      console.log('Config found:', !!config);
+      console.log('Variable data found:', !!variableData);
+      console.log('Available variables in dataset:', Object.keys(matchingDataset.variables));
+      
+      if (!config || !variableData) {
+        console.log('❌ Missing config or variable data');
+        return [];
+      }
 
       let data = variableData
         ?.map(d => ({ x: d.datetime.getTime(), y: d.value, date: d.datetime }))
