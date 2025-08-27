@@ -302,25 +302,25 @@ export const TimeSeriesChart = ({
       // More than a month - show days/months
       timeUnit = 'day';
       displayFormats = {
-        day: 'dd/MM',
+        day: 'eee dd/MM',
         week: 'dd/MM',
         month: 'MMM yyyy'
       };
       maxTicksLimit = 8;
     } else if (timeSpanDays > 7) {
-      // More than a week but less than a month - show date + time
+      // More than a week but less than a month - show date + day name
       timeUnit = 'day';
       displayFormats = {
-        day: 'dd/MM HH:mm',
-        hour: 'dd/MM HH:mm'
+        day: 'eee dd/MM',
+        hour: 'eee dd/MM HH:mm'
       };
       maxTicksLimit = 8;
     } else if (timeSpanDays > 1) {
-      // More than a day but less than a week - show date + time
+      // More than a day but less than a week - show date + time + day name
       timeUnit = 'hour';
       displayFormats = {
-        hour: 'dd/MM HH:mm',
-        minute: 'dd/MM HH:mm'
+        hour: 'eee dd/MM HH:mm',
+        minute: 'eee HH:mm'
       };
       maxTicksLimit = 10;
     } else {
@@ -510,6 +510,68 @@ export const TimeSeriesChart = ({
               onZoomStart: () => {
                 setTooltip(prev => ({ ...prev, visible: false }));
                 return true;
+              },
+              onZoomComplete: ({ chart }: any) => {
+                // Recalculate time format based on visible range after zoom
+                const xScale = chart.scales.x;
+                const visibleMin = xScale.min;
+                const visibleMax = xScale.max;
+                const visibleSpanHours = (visibleMax - visibleMin) / (1000 * 60 * 60);
+                const visibleSpanDays = visibleSpanHours / 24;
+                
+                let newTimeUnit: string;
+                let newDisplayFormats: any;
+                let newMaxTicksLimit = 10;
+                
+                if (visibleSpanDays > 30) {
+                  // More than a month visible - show days/months
+                  newTimeUnit = 'day';
+                  newDisplayFormats = {
+                    day: 'eee dd/MM',
+                    week: 'dd/MM',
+                    month: 'MMM yyyy'
+                  };
+                  newMaxTicksLimit = 8;
+                } else if (visibleSpanDays > 7) {
+                  // More than a week visible - show date + day name
+                  newTimeUnit = 'day';
+                  newDisplayFormats = {
+                    day: 'eee dd/MM',
+                    hour: 'eee dd/MM HH:mm'
+                  };
+                  newMaxTicksLimit = 8;
+                } else if (visibleSpanDays > 1) {
+                  // More than a day visible - show date + time + day name
+                  newTimeUnit = 'hour';
+                  newDisplayFormats = {
+                    hour: 'eee dd/MM HH:mm',
+                    minute: 'eee HH:mm'
+                  };
+                  newMaxTicksLimit = 10;
+                } else if (visibleSpanHours > 6) {
+                  // More than 6 hours visible - show time with day name
+                  newTimeUnit = 'hour';
+                  newDisplayFormats = {
+                    hour: 'eee HH:mm',
+                    minute: 'HH:mm'
+                  };
+                  newMaxTicksLimit = 12;
+                } else {
+                  // Less than 6 hours visible - just show detailed time
+                  newTimeUnit = 'minute';
+                  newDisplayFormats = {
+                    minute: 'HH:mm',
+                    second: 'HH:mm:ss'
+                  };
+                  newMaxTicksLimit = 15;
+                }
+                
+                // Update the chart's time configuration
+                chart.options.scales.x.time.unit = newTimeUnit;
+                chart.options.scales.x.time.displayFormats = newDisplayFormats;
+                chart.options.scales.x.ticks.maxTicksLimit = newMaxTicksLimit;
+                
+                chart.update('none');
               }
             },
             limits: {
